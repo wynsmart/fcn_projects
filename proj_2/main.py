@@ -10,6 +10,12 @@ def main():
     paw = MyPaw(utils.args.username, utils.args.password)
     utils.log(paw.fetch('/fakebook/'))
 
+    # You may implement a class called MyCrawler, then paw can be a property of
+    # the instances. Like this
+    # class MyCrawler:
+    #     def __init__(self):
+    #         self.fetch = MyPaw(username, password).fetch
+
 
 # ==============================================================================
 
