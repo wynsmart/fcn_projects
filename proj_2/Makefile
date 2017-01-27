@@ -1,2 +1,2 @@
 default:
-	chmod +x ./client
+	chmod +x ./webcrawler
