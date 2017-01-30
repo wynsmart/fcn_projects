@@ -12,6 +12,19 @@ class MyHTTP:
         self.hostname = hostname
         self.port = port
 
+    def res_complete(self, res):
+        # If we got the Content-Length, we test whether the body is complete
+        # by its length; If we didn't get the Content-Length, assume that the
+        # response is incomplete
+        match_len = re.search(r'Content-Length: (\d+)', res)
+        if match_len:
+            content_len = int(match_len.group(1))
+            body_offset = res.find('\r\n\r\n') + 4
+            if body_offset >= 4 and body_offset + content_len <= len(res):
+                return True
+
+        return False
+
     def _http(self, raw):
         # create socket and connect
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -21,16 +34,15 @@ class MyHTTP:
         self.socket.sendall(raw.encode())
 
         # get response
-        # TODO: reduce the choking time
         BUFFER_SIZE = 1024
         res = ''
-        while 1:
+        while not self.res_complete(res):
             data = self.socket.recv(BUFFER_SIZE).decode()
+            res += data
             if not data:
                 break
-            res += data
-        log('received:', len(res))
-        return res
+        # log('received:', len(res))
+        return self.parse_res(res)
 
     def _flatten_dict(self, d, item, separator):
         return separator.join(item.format(key, d[key]) for key in d)
@@ -67,6 +79,15 @@ class MyHTTP:
         log(req)
         return self._http(req)
 
+    def parse_res(self, res):
+        status = int(res[9:12])
+        headers, body = res.split('\r\n\r\n', maxsplit=1)
+        return {
+            'status': status,
+            'headers': headers,
+            'body': body,
+        }
+
 
 class MyPaw:
     def __init__(self, username, password):
@@ -78,10 +99,10 @@ class MyPaw:
         self.login_page = '/accounts/login/?next=/fakebook/'
 
     def updateCookies(self, res):
-        cookies = re.findall(r'Set-Cookie: ([^=]+)=([^;]+)', res)
+        cookies = re.findall(r'Set-Cookie: ([^=]+)=([^;]+)', res['headers'])
         for key, val in cookies:
             self.cookies[key] = val
-        log(self.cookies)
+        # log(self.cookies)
 
     def login(self):
         # get csrftoken
@@ -96,12 +117,12 @@ class MyPaw:
             'next': '/fakebook/',
         }
         res = self.http.post(self.login_page, form, self.cookies)
-        log(res)
+        # log(res)
 
         # update session id
         self.updateCookies(res)
 
-        log('login succeeded as {}'.format(self.username))
+        log('succeeded: login as {}'.format(self.username))
 
     def fetch(self, path):
         '''Returns the page source of the given relative path
@@ -109,7 +130,21 @@ class MyPaw:
         if not self.cookies:
             self.login()
 
-        # TODO: there might be exceptions
-        res = self.http.get(path, self.cookies)
+        res = False
+        while (not res) or (res['status'] == 500):
+            res = self.http.get(path, self.cookies)
+            if res['status'] == 403 or res['status'] == 404:
+                return ''
+            elif res['status'] == 301:
+                path_pattern = r'Location: http://{}(.+)'.format(self.hostname)
+                url_match = re.search(path_pattern, res['headers'])
+                if url_match:
+                    path = url_match.group(1)
+                    res = False
+            elif res['status'] == 302:
+                if re.search(r'Location: .*login.*', res['headers']):
+                    log('login required, trying...')
+                    self.login()
+                    res = False
 
-        return res
+        return res['body']
