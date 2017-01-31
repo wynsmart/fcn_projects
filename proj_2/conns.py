@@ -27,21 +27,22 @@ class MyHTTP:
 
     def _http(self, raw):
         # create socket and connect
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.hostname, self.port))
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((self.hostname, self.port))
 
         # send request
-        self.socket.sendall(raw.encode())
+        sock.sendall(raw.encode())
 
         # get response
         BUFFER_SIZE = 1024
         res = ''
         while not self.res_complete(res):
-            data = self.socket.recv(BUFFER_SIZE).decode()
+            data = sock.recv(BUFFER_SIZE).decode()
             res += data
             if not data:
                 break
         # log('received:', len(res))
+        sock.close()
         return self.parse_res(res)
 
     def _flatten_dict(self, d, item, separator):
@@ -61,7 +62,7 @@ class MyHTTP:
         if cookies:
             headers['Cookie'] = self.genCookies(cookies)
         req = 'GET {} HTTP/1.1\n{}\n\n'.format(path, self.genHeaders(headers))
-        log(req)
+        # log(req)
         return self._http(req)
 
     def post(self, path, body, cookies):
@@ -76,7 +77,7 @@ class MyHTTP:
         req = 'POST {} HTTP/1.1\n{}\n\n{}'.format(path,
                                                   self.genHeaders(headers),
                                                   body)
-        log(req)
+        # log(req)
         return self._http(req)
 
     def parse_res(self, res):
@@ -104,7 +105,13 @@ class MyPaw:
             self.cookies[key] = val
         # log(self.cookies)
 
-    def login(self):
+    def login(self, retries=3):
+        if retries < 0:
+            print('[Login Failed] Incorrect username or password')
+            exit()
+
+        log('logging in as {}'.format(self.username))
+
         # get csrftoken
         res = self.http.get('/accounts/login/?next=/fakebook/')
         self.updateCookies(res)
@@ -117,12 +124,14 @@ class MyPaw:
             'next': '/fakebook/',
         }
         res = self.http.post(self.login_page, form, self.cookies)
-        # log(res)
+        # log('zzz', res)
 
         # update session id
         self.updateCookies(res)
 
-        log('succeeded: login as {}'.format(self.username))
+        # retry if login failed
+        if 'Please enter a correct username and password.' in res['body']:
+            self.login(retries=retries - 1)
 
     def fetch(self, path):
         '''Returns the page source of the given relative path
@@ -143,7 +152,7 @@ class MyPaw:
                     res = False
             elif res['status'] == 302:
                 if re.search(r'Location: .*login.*', res['headers']):
-                    log('login required, trying...')
+                    log('login required, retrying...')
                     self.login()
                     res = False
 
