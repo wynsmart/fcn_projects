@@ -7,7 +7,8 @@ from utils import log
 class MyHTTP:
     '''Wrapped Socket class to simplify the HTTP APIs
     '''
-
+    # initialize the wrapper socket connection parameters;
+    # default port is 80 unless specified
     def __init__(self, hostname, port=80):
         self.hostname = hostname
         self.port = port
@@ -29,6 +30,7 @@ class MyHTTP:
 
         return False
 
+    # wrapper for HTTP send and receive functions
     def _http(self, raw):
         # create socket and connect
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -51,6 +53,7 @@ class MyHTTP:
     def _flatten_dict(self, d, item, separator):
         return separator.join(item.format(key, d[key]) for key in d)
 
+    # get parameters from the HTTP wrapper header
     def genHeaders(self, headers):
         return self._flatten_dict(headers, '{}: {}', '\n')
 
@@ -60,6 +63,7 @@ class MyHTTP:
     def genBody(self, body_dict):
         return self._flatten_dict(body_dict, '{}={}', '&')
 
+    # HTTP GET method
     def get(self, path, cookies=None):
         headers = {'Host': self.hostname, }
         if cookies:
@@ -68,6 +72,7 @@ class MyHTTP:
         # log(req)
         return self._http(req)
 
+    # HTTP POST method
     def post(self, path, body, cookies):
         body = self.genBody(body)
         headers = {
@@ -83,6 +88,7 @@ class MyHTTP:
         # log(req)
         return self._http(req)
 
+    # parse the received data from server into given parameters
     def parse_res(self, res):
         status = int(res[9:12])
         headers, body = res.split('\r\n\r\n', maxsplit=1)
@@ -102,11 +108,13 @@ class MyPaw:
         self.cookies = {}
         self.login_page = '/accounts/login/?next=/fakebook/'
 
+    # obtain the cookie value from the header after successful login
     def updateCookies(self, res):
         cookies = re.findall(r'Set-Cookie: ([^=]+)=([^;]+)', res['headers'])
         for key, val in cookies:
             self.cookies[key] = val
         # log(self.cookies)
+
 
     def login(self, retries=3):
         if retries < 0:
@@ -136,12 +144,14 @@ class MyPaw:
         if 'Please enter a correct username and password.' in res['body']:
             self.login(retries=retries - 1)
 
+    # fetches the page source of a given URL path
     def fetch(self, path):
         '''Returns the page source of the given relative path
         '''
         if not self.cookies:
             self.login()
 
+        # handle HTTP error messages
         res = False
         while (not res) or (res['status'] == 500):
             res = self.http.get(path, self.cookies)

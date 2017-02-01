@@ -3,10 +3,21 @@ name: Fan Yang
 nuid: 00-179-7661
 email: yang.fan7@husky.neu.edu
 
+name: Samkeet Shah
+nuid: 001258979
+email: shah.sam@husky.neu.edu
 
 <HIGH-LEVEL APPROACH>
 
 
 <CHALLENGES>
+1. Choosing the right algorithm BFS vs DFS
+<-- Will add details tomorrow -->
+
+2. Speeding up the crawling (threads)
+<-- Will add details tomorrow -->
+
+3. Using Regex to Parse HTML pages
+<-- Will add details tomorrow -->
 
 <TESTING>

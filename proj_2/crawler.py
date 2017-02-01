@@ -3,7 +3,7 @@ import threading
 from utils import log
 from conns import MyPaw
 
-
+# crawler class implementing Breadth-First Search given a root URL
 class MyCrawler:
     def __init__(self, username, password):
         self.fetch = MyPaw(username, password).fetch
@@ -11,11 +11,14 @@ class MyCrawler:
                                + r'FLAG: (.{64})' + r'</h2>')
         self.secrets = []
 
+    # methood to parse the HTML source and use a regex to get all
+    # URL tags and their content
     def parseLinks(self, res):
         hrefs = re.findall(r'<a href=\"\/[^\"]+\"', res)
         links = [l[9:-1] for l in hrefs]
         return links
 
+    # crawl method implementing BFS with threads
     def crawl(self, root, maxthreads=10):
         def worker():
             path = q.pop(0)
@@ -35,6 +38,9 @@ class MyCrawler:
         q = [root]
         threads = []
         seen = set(q)
+
+        # initialize a threads to speed up crawling
+        # end execution on obtaining 5 flags
         while (q or threads) and (len(self.secrets) < 5):
             if q and len(threads) < maxthreads:
                 t = threading.Thread(target=worker)
