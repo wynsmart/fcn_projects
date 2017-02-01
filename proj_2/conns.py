@@ -13,9 +13,13 @@ class MyHTTP:
         self.port = port
 
     def res_complete(self, res):
-        # If we got the Content-Length, we test whether the body is complete
-        # by its length; If we didn't get the Content-Length, assume that the
+        # An </html> tag in response body is considered complete. Or if we got
+        # the Content-Length, we test whether the body is complete by its
+        # length; If we didn't get the Content-Length, assume that the
         # response is incomplete
+        if '</html>' in res:
+            return True
+
         match_len = re.search(r'Content-Length: (\d+)', res)
         if match_len:
             content_len = int(match_len.group(1))
@@ -34,13 +38,12 @@ class MyHTTP:
         sock.sendall(raw.encode())
 
         # get response
-        BUFFER_SIZE = 1024
+        BUFFER_SIZE = 256
         res = ''
-        while not self.res_complete(res):
+        data = True
+        while not self.res_complete(res) and data:
             data = sock.recv(BUFFER_SIZE).decode()
             res += data
-            if not data:
-                break
         # log('received:', len(res))
         sock.close()
         return self.parse_res(res)

@@ -20,8 +20,7 @@ class MyCrawler:
         def worker():
             path = q.pop(0)
             log('unique: {} queued: {} threads: {} node: {}'.format(
-                len(color), len(q), len(threads), path))
-            color[path] = 2
+                len(seen), len(q), len(threads), path))
             res = self.fetch(path)
             sec_match = re.search(self.secret_pattern, res)
             if sec_match:
@@ -29,13 +28,13 @@ class MyCrawler:
                 self.secrets.append(secret)
                 print(secret)
             for l in self.parseLinks(res):
-                if l not in color:
-                    color[l] = 1
+                if l not in seen:
+                    seen.add(l)
                     q.append(l)
 
         q = [root]
         threads = []
-        color = {}
+        seen = set(q)
         while (q or threads) and (len(self.secrets) < 5):
             if q and len(threads) < maxthreads:
                 t = threading.Thread(target=worker)
@@ -43,6 +42,6 @@ class MyCrawler:
                 t.start()
             threads = [t for t in threads if t.is_alive()]
             # log('unique: {} queued: {} threads: {}'.format(
-            #     len(color), len(q), len(threads)))
+            #     len(seen), len(q), len(threads)))
 
         log(self.secrets)
