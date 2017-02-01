@@ -3,6 +3,7 @@ import threading
 from utils import log
 from conns import MyPaw
 
+
 # crawler class implementing Breadth-First Search given a root URL
 class MyCrawler:
     def __init__(self, username, password):
@@ -10,6 +11,7 @@ class MyCrawler:
         self.secret_pattern = (r'<h2 class=\'secret_flag\' style="color:red">'
                                + r'FLAG: (.{64})' + r'</h2>')
         self.secrets = []
+        self.threads = 0
 
     # methood to parse the HTML source and use a regex to get all
     # URL tags and their content
@@ -23,7 +25,7 @@ class MyCrawler:
         def worker():
             path = q.pop(0)
             log('unique: {} queued: {} threads: {} node: {}'.format(
-                len(seen), len(q), len(threads), path))
+                len(seen), len(q), self.threads, path))
             res = self.fetch(path)
             sec_match = re.search(self.secret_pattern, res)
             if sec_match:
@@ -34,20 +36,19 @@ class MyCrawler:
                 if l not in seen:
                     seen.add(l)
                     q.append(l)
+            self.threads -= 1
 
         q = [root]
-        threads = []
         seen = set(q)
 
         # initialize a threads to speed up crawling
         # end execution on obtaining 5 flags
-        while (q or threads) and (len(self.secrets) < 5):
-            if q and len(threads) < maxthreads:
+        while (q or self.threads) and (len(self.secrets) < 5):
+            if q and self.threads < maxthreads:
+                self.threads += 1
                 t = threading.Thread(target=worker)
-                threads.append(t)
                 t.start()
-            threads = [t for t in threads if t.is_alive()]
             # log('unique: {} queued: {} threads: {}'.format(
-            #     len(seen), len(q), len(threads)))
+            #     len(seen), len(q), self.threads))
 
         log(self.secrets)

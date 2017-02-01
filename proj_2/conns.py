@@ -7,6 +7,7 @@ from utils import log
 class MyHTTP:
     '''Wrapped Socket class to simplify the HTTP APIs
     '''
+
     # initialize the wrapper socket connection parameters;
     # default port is 80 unless specified
     def __init__(self, hostname, port=80):
@@ -114,7 +115,6 @@ class MyPaw:
         for key, val in cookies:
             self.cookies[key] = val
         # log(self.cookies)
-
 
     def login(self, retries=3):
         if retries < 0:
