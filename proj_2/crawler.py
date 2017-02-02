@@ -7,7 +7,9 @@ from conns import MyPaw
 # crawler class implementing Breadth-First Search given a root URL
 class MyCrawler:
     def __init__(self, username, password):
-        self.fetch = MyPaw(username, password).fetch
+        self._paw = MyPaw(username, password)
+        self.fetch = self._paw.fetch
+        self.login = self._paw.login
         self.secret_pattern = (r'<h2 class=\'secret_flag\' style="color:red">'
                                + r'FLAG: (.{64})' + r'</h2>')
         self.secrets = []
@@ -43,10 +45,11 @@ class MyCrawler:
 
         # initialize a threads to speed up crawling
         # end execution on obtaining 5 flags
-        while (q or self.threads) and (len(self.secrets) < 5):
+        while len(self.secrets) < 5:
             if q and self.threads < maxthreads:
                 self.threads += 1
                 t = threading.Thread(target=worker)
+                t.daemon = True
                 t.start()
             # log('unique: {} queued: {} threads: {}'.format(
             #     len(seen), len(q), self.threads))

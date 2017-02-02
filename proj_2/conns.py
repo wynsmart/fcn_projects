@@ -117,9 +117,10 @@ class MyPaw:
         # log(self.cookies)
 
     def login(self, retries=3):
+        '''Login with credentials, returns True if succeeded, else False
+        '''
         if retries < 0:
-            print('[Login Failed] Incorrect username or password')
-            exit()
+            return False
 
         log('logging in as {}'.format(self.username))
 
@@ -140,16 +141,15 @@ class MyPaw:
         # update session id
         self.updateCookies(res)
 
-        # retry if login failed
-        if 'Please enter a correct username and password.' in res['body']:
-            self.login(retries=retries - 1)
+        # check login results, retry if login failed
+        failure_msg = 'Please enter a correct username and password.'
+        is_failed = failure_msg in res['body']
+        return self.login(retries=retries - 1) if is_failed else True
 
     # fetches the page source of a given URL path
     def fetch(self, path):
         '''Returns the page source of the given relative path
         '''
-        if not self.cookies:
-            self.login()
 
         # handle HTTP error messages
         res = False
@@ -162,11 +162,6 @@ class MyPaw:
                 url_match = re.search(path_pattern, res['headers'])
                 if url_match:
                     path = url_match.group(1)
-                    res = False
-            elif res['status'] == 302:
-                if re.search(r'Location: .*login.*', res['headers']):
-                    log('login required, retrying...')
-                    self.login()
                     res = False
 
         return res['body']

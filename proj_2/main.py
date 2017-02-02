@@ -6,5 +6,7 @@ from crawler import MyCrawler
 if __name__ == '__main__':
     utils.load_args()
     utils.log(utils.args)
-    MyCrawler(utils.args.username, utils.args.password).crawl(
-        '/fakebook/', maxthreads=utils.args.threads)
+    crawler = MyCrawler(utils.args.username, utils.args.password)
+    if not crawler.login():
+        exit('[Login Failed] Incorrect username or password')
+    crawler.crawl('/fakebook/', maxthreads=utils.args.threads)
