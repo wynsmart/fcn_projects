@@ -8,7 +8,7 @@ def load_args():
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('-t', '--threads', type=int, default=20)
+    parser.add_argument('-t', '--threads', type=int, default=5)
     parser.add_argument('username')
     parser.add_argument('password')
 
