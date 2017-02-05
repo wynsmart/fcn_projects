@@ -101,6 +101,8 @@ class MyHTTP:
 
 
 class MyPaw:
+    '''High level APIs to login and crawl on Fakebook with the help of MyHTTP
+    '''
     def __init__(self, username, password):
         self.username = username
         self.password = password
