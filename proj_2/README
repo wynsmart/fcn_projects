@@ -39,7 +39,7 @@ To speed the up the crawling process we firstly reduced the choking time of sock
 recv method. The socket recv method may not receive complete data, however, pure
 'while' loop until no data sometimes chokes the thread, waiting for socket close.
 So finally we added some special cases detection to end receiving early. What's
-more, we added multi-threading (defaults to 20 threads) to crawl the website
+more, we added multi-threading (defaults to 5 threads) to crawl the website
 simultaneously. Eventually, we reduced the execution time to around one minute.
 
 3. Using Regex to Parse HTML pages
