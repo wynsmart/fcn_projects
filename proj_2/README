@@ -8,16 +8,46 @@ nuid: 001258979
 email: shah.sam@husky.neu.edu
 
 <HIGH-LEVEL APPROACH>
-
+- ./webcrawler command calls the main.py with the given arguments.
+- main.py calls utils.py to initialize the logging for the given application
+- main.py initializes an Object of MyCrawler passing the root path of the fakebook.com
+  MyCrawler creates a MyPaw object to login to the website using the given
+  arguments (username and password) using a HTTP POST request.
+- Further is create a HTTP wrapper to send and receive custom HTTP responses using
+  HTTP GET requests.
+- The crawler is starts crawling from the root URL after successful login and
+  performs a BFS in multi-threaded mode to scan for <a href ""> tags and
+  <h2 class = "secret_flags"> tags using a regex.
+- the crawler maintains a color = {} dictionary to store the list of URLs
+  visited, queued and unvisited and pops one from the queue and adds the links found
+  on that page to unvisited list.
+- It stores all secret_flags found in a secret_flags dictionary and prints all
+  flags after crawling all pages.
 
 <CHALLENGES>
 1. Choosing the right algorithm BFS vs DFS
-<-- Will add details tomorrow -->
+Depth first search is slower as compared to Breadth First Search  for
+getting all unique pages faster and it has a higher chance of getting stuck into
+infinite loops. Hence we opted for BFS over DFS.
 
 2. Speeding up the crawling (threads)
-<-- Will add details tomorrow -->
+Initial crawling took a lot of time to crawl all of 10965 pages to ensure we had
+found all possible flags apart from the 5 mentioned.
+To speed the up the crawling process we added multi-threading to improve have
+multiple threads crawl the website simultaneously.
 
 3. Using Regex to Parse HTML pages
-<-- Will add details tomorrow -->
+Since we weren't allowed to use 3rd party libraries to parse, it posed a problem
+parsing webpage HTML source to get the specific URLs and secret_flags using
+regular expressions.
+
+4. Content-Length in the HTTP Header
+Trouble figuring out initial HTTP responses from the server due to missing field
+Content-Length in the HTTP header. The server replied with a 'CSRF not allowed'
+message.
 
 <TESTING>
+
+1. Testing without multi-threading. (took > 10 mins to crawl)
+2. Testing with multi-threading (takes upto 3 mins)
+3. Handling errors due to fewer arguments.
