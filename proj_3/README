@@ -74,8 +74,10 @@ y: throughput, latency
 TCP: N1 --> N4
 CBR: N5 --> N6
 
-start TCP before CBR
-
-start CBR before TCP, repeat
+1. start TCP before CBR
+2. start CBR before TCP, repeat
+3. start by using a small CBR and increase CBR exponentially
+4. start with small TCP bandwidth and increase bandwidth
+5. vary queue size
 
 repeat each scenario with TCP Reno and SACK, using queuing algorithms: DropTail and RED
