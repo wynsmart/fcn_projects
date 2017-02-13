@@ -19,6 +19,7 @@ N5                      N6
 
 
 <EXPERIMENT 1>
+figures to plot
 x: bandwidth
 y: throughput, latency, drops
 
@@ -34,6 +35,7 @@ change the CBR direction, repeat last scenario
 
 
 <EXPERIMENT 2>
+figures to plot
 x: bandwidth
 y: throughput, latency, drops
 
@@ -41,9 +43,13 @@ y: throughput, latency, drops
 CBR: N2 --> N3
 TCP1: N1 --> N4
 TCP2: N5 --> N6
-Two variables
-* delay of starting TCP1 and TCP2 (0 to max)
-* CBR rate (0 to max)
+we have two variables, so designed four sub-scenarios
+* delay between starting TCP1 and TCP2 (0 to max)
+* CBR bandwidth (0 to max)
+1. concurrently start TCP1 and TCP2, then increase bandwidth from 0 to max;
+2. fixed bandwidth at 0, start TCP1 and TCP2 with different delays
+3. fixed bandwidth at half max, start TCP1 and TCP2 with different delays
+4. fixed bandwidth at max, start TCP1 and TCP2 with different delays
 
 repeat with TCP1/TCP2 as
 * Reno/Reno
@@ -61,10 +67,9 @@ concurrently start four TCPs as (Tahoe/Reno/NewReno/Vegas), increase CBR rate (0
 
 
 <EXPERIMENT 3>
+figures to plot
 x: time
-y:
-- throughput
-- latency
+y: throughput, latency
 
 TCP: N1 --> N4
 CBR: N5 --> N6
