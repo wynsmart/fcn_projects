@@ -1,0 +1,76 @@
+<PERSONAL INFO>
+name: Fan Yang
+nuid: 00-179-7661
+email: yang.fan7@husky.neu.edu
+
+name: Samkeet Shah
+nuid: 001258979
+email: shah.sam@husky.neu.edu
+
+
+<TOPOLOGY>
+N1                      N4
+  \                    /
+   \                  /
+    N2--------------N3
+   /                  \
+  /                    \
+N5                      N6
+
+
+<EXPERIMENT 1>
+x: bandwidth
+y: throughput, latency, drops
+
+# 1
+CBR: N2 --> N3
+TCP: N1 --> N4
+start TCP first, then start CBR. increase bandwidth from 0 to max, test the four TCPs variants.
+
+# 2
+CBR: N3 --> N2
+TCP: N1 --> N4
+change the CBR direction, repeat last scenario
+
+
+<EXPERIMENT 2>
+x: bandwidth
+y: throughput, latency, drops
+
+# 1
+CBR: N2 --> N3
+TCP1: N1 --> N4
+TCP2: N5 --> N6
+Two variables
+* delay of starting TCP1 and TCP2 (0 to max)
+* CBR rate (0 to max)
+
+repeat with TCP1/TCP2 as
+* Reno/Reno
+* NewReno/Reno
+* Vegas/Vegas
+* NewReno/Vegas
+
+# 2
+CBR: N2 --> N3
+TCP1: N1 --> N4
+TCP2: N1 --> N4
+TCP3: N1 --> N4
+TCP4: N1 --> N4
+concurrently start four TCPs as (Tahoe/Reno/NewReno/Vegas), increase CBR rate (0 to max)
+
+
+<EXPERIMENT 3>
+x: time
+y:
+- throughput
+- latency
+
+TCP: N1 --> N4
+CBR: N5 --> N6
+
+start TCP before CBR
+
+start CBR before TCP, repeat
+
+repeat each scenario with TCP Reno and SACK, using queuing algorithms: DropTail and RED
