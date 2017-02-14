@@ -20,7 +20,7 @@ N5                      N6
 
 <EXPERIMENT 1>
 figures to plot
-x: bandwidth
+x: CBR bandwidth
 y: throughput, latency, drops
 
 # 1
@@ -36,7 +36,7 @@ change the CBR direction, repeat last scenario
 
 <EXPERIMENT 2>
 figures to plot
-x: bandwidth
+x: CBR bandwidth
 y: throughput, latency, drops
 
 # 1
@@ -81,3 +81,7 @@ CBR: N5 --> N6
 5. vary queue size
 
 repeat each scenario with TCP Reno and SACK, using queuing algorithms: DropTail and RED
+
+
+<Data Analysis>
+We’ll conduct each experiment scenario for many times, to get the average data. Then we’ll be using Excel to plot the graphs and stats for visualization and verification. Furthermore, we’ll be using T-tests to arrive at and prove our conclusions. This will be a statistical approach to verifying the results.
