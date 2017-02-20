@@ -1,0 +1,59 @@
+Config:
+CBR: 1mb
+Queue at n2: 10
+Bandwith (all links): 2Mb
+Latency: 10ms
+
+TCP Vegas ran with much less Queue being used up at the node 2
+Comparatively TCP Reno, Newreno, Tahoe constantly usd up almost the entire queue of the node n2. But without any packet drops
+
+#######
+
+Config:
+CBR: 2mb
+Queue at N1: 10
+Bandwith (all links): 2Mb
+Latency: 10ms
+
+TCP Vegas:
+TCP throughput reduces.
+Queue at N1 is filled up mostly by UDP packets.
+TCP packet drops after 2.8sec from start
+N0 does not receive ACKs during 2.8-2.9 sec and hence no new packets till 3.4sec.
+TCP sending resumes at 3.49 sec and both packets get dropped due to queue being full.
+
+------
+TCP Reno
+
+Max TCP throughput is 16 packets which is initial packet flow nd increases in power of 2 until packets packets are dropped.
+
+Longer timeout period as compared to other TCP variants
+TCP flow Resumes with 1 packet and 
+If queue is full, CBR packets are dropped and corresponding TCP packets are allowed. No queueing of TCP packets.
+Packet flow gradually increases from 4 packets to 5,6,7 
+
+-----
+TCP NewReno
+2 packets 
+4 packets 
+8 through
+16 packets through
+CBR Drops, TCP drops
+restart tcp flow with 1 packet
+TCP has to wait till > 3 packets in queue.
+if there are 3 packets in queue, 1 is transmitted and 2 are left in queue until next one arrive. Till then CBR flow is constant.
+
+
+After TCP packet drop, TCP flow is 1 packet for 4 packets getting through. Then increments in powers of 2 (at 2.757sec)
+
+
+------
+TCP Tahoe:
+CBR packet drops at 1.5 secs
+TCP packet drops at 1.544 sec
+TCP throughput decreases put packet drop is zero after 1.544
+CBR packet drop increases.
+After receiving ACK for 1 packet, 2 packets are send, then 4 and so on. Hence Tahoe increases TCP packet window in powers of 2. and consequent number of CBR packets are dropped.
+Maximum TCP packets getting through are 8, rest are dropped.
+At 16 packets, all are dropped and the TCP packets sent are reduced by powers of 2. and the procedure above is repeated.
+
