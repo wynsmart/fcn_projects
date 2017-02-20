@@ -1,55 +1,41 @@
-# CBR Flow reversed. Now from N2 to N1
+# CBR Flow reversed. Now from N3 to N2
 
 set ns [new Simulator]
 
-$ns color 1 Blue
-$ns color 2 Red
-
-set nf [open exp_one_tahoe_4_cbr_rev.nam w]
+set nf [open exp_one_newreno.nam w]
 $ns namtrace-all $nf
 
 proc finish {} {
         global ns nf
         $ns flush-trace
         close $nf
-	# exec nam exp_one_reno_2_cbr_rev.nam &
         exit 0
 }
 
 # Create topology
-set n0 [$ns node]
 set n1 [$ns node]
 set n2 [$ns node]
 set n3 [$ns node]
 set n4 [$ns node]
 set n5 [$ns node]
+set n6 [$ns node]
 
 # create all links
-$ns duplex-link $n0 $n1 2Mb 10ms DropTail
-$ns duplex-link $n4 $n1 2Mb 10ms DropTail
-$ns duplex-link $n1 $n2 2Mb 10ms DropTail
-$ns duplex-link $n2 $n3 2Mb 10ms DropTail
-$ns duplex-link $n2 $n5 2Mb 10ms DropTail
+$ns duplex-link $n1 $n2 10Mb 10ms DropTail
+$ns duplex-link $n5 $n2 10Mb 10ms DropTail
+$ns duplex-link $n2 $n3 10Mb 10ms DropTail
+$ns duplex-link $n3 $n4 10Mb 10ms DropTail
+$ns duplex-link $n3 $n6 10Mb 10ms DropTail
 
 # queue limit for link n2-n3
 $ns queue-limit $n2 $n3 10
 
-# nam topology
-$ns duplex-link-op $n0 $n1 orient right-down
-$ns duplex-link-op $n4 $n1 orient right-up
-$ns duplex-link-op $n1 $n2 orient right
-$ns duplex-link-op $n2 $n3 orient right-up
-$ns duplex-link-op $n2 $n5 orient right-down
-
-# queue monitor for nam
-$ns duplex-link-op $n1 $n2 queuePos 0.5
-
-# connection n0-n3 TCP
-set tcp [new Agent/TCP]
+# connection n1-n4 TCP
+set tcp [new Agent/TCP/Newreno]
 $tcp set class_ 2
-$ns attach-agent $n0 $tcp
+$ns attach-agent $n1 $tcp
 set sink [new Agent/TCPSink]
-$ns attach-agent $n3 $sink
+$ns attach-agent $n4 $sink
 $ns connect $tcp $sink
 $tcp set fid_ 1
 
@@ -58,11 +44,11 @@ set ftp [new Application/FTP]
 $ftp attach-agent $tcp
 $ftp set type_ FTP
 
-# connection n1-n2 UDP
+# connection n3-n2 UDP
 set udp [new Agent/UDP]
-$ns attach-agent $n2 $udp
+$ns attach-agent $n3 $udp
 set udpsink [new Agent/Null]
-$ns attach-agent $n1 $udpsink
+$ns attach-agent $n2 $udpsink
 $ns connect $udp $udpsink
 $udp set fid_ 2
 
@@ -71,14 +57,23 @@ set cbr [new Application/Traffic/CBR]
 $cbr attach-agent $udp
 $cbr set type_ CBR
 $cbr set packet_size_ 1000
-$cbr set rate_ 4mb
+$cbr set rate_ 1mb
 $cbr set random_ false
 
-$ns at 0.1 "$cbr start"
-$ns at 0.8 "$ftp start"
-$ns at 4.0 "$ftp stop"
-$ns at 4.2 "$cbr stop"
-$ns at 4.6 "finish"
+$ns at 0.1 "$ftp start"
+$ns at 0.4 "$cbr start"
+$ns at 0.8 "$cbr set rate_ 2Mb"
+$ns at 1.0 "$cbr set rate_ 3Mb"
+$ns at 1.2 "$cbr set rate_ 4Mb"
+$ns at 1.4 "$cbr set rate_ 5Mb"
+$ns at 1.6 "$cbr set rate_ 6Mb"
+$ns at 1.8 "$cbr set rate_ 7Mb"
+$ns at 2.0 "$cbr set rate_ 8Mb"
+$ns at 2.2 "$cbr set rate_ 9Mb"
+$ns at 2.4 "$cbr set rate_ 10Mb"
+$ns at 2.6 "$cbr stop"
+$ns at 2.8 "$ftp stop"
+$ns at 3.0 "finish"
 
 $ns run
 
