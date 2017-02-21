@@ -1,5 +1,5 @@
 import re
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 # throughput = sum(received_size) / total_time     (for each cbr rate)
 # latency = end_time - start_time   (for each package)
@@ -52,30 +52,30 @@ class Analyzer:
             throughput.append(
                 sum([
                     p.size / 1000 for p in self.tcps
-                    if p.event == 'r' and p.dest == 2 and (st <= p.time < ed)
+                    if p.event == 'r' and p.dest == 3 and (st <= p.time < ed)
                 ]) / (ed - st))
         return throughput
 
-    # def plot(self, x, y):
-    #     plt.plot(x, y, 'o-')
-    #     plt.grid(True)
-    #     plt.xticks(x)
-    #     plt.yticks(range(0, 500, 100))
-    #     # plt.savefig(dir_base + 'filename.jpg')
-    #     plt.show()
+    def plot(self, x, y):
+        plt.plot(x, y, 'o-')
+        plt.grid(True)
+        plt.xticks(x)
+        # plt.savefig(dir_base + 'filename.jpg')
+        plt.show()
 
 
 def main():
     # file_path = dir_base + 'exp_one_tahoe.nam'
-    file_path = '/Users/iSMart/Desktop/test_10s.nam'
+    file_path = dir_base + 'test.nam'
     with open(file_path) as f:
         events = f.readlines()
     packets = [Packet(e) for e in events if e[0] in 'hrd+-']
     analyzer = Analyzer(packets)
     x = range(1, 11)
     y = analyzer.calc_throughputs(
-        range(10, 111, 10))
+        range(10, 21, 10))
     print(y)
+    # analyzer.plot(x, y)
 
 
 if __name__ == '__main__':
