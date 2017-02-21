@@ -1,8 +1,4 @@
 set ns [new Simulator]
-
-$ns color 1 Blue
-$ns color 2 Red
-
 set nf [open exp_one_vegas.nam w]
 $ns namtrace-all $nf
 
