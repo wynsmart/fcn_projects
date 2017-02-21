@@ -5,19 +5,6 @@ import matplotlib.pyplot as plt
 # latency = end_time - start_time   (for each package)
 # drops = total_received_packages - total_sent_packages    (for each flow)
 
-# +
-# time: -t 0.1
-# src: -s 0
-# dest: -d 1
-# package type: -p tcp
-# size(bytes): -e 40
-# conv: -c 1
-# id: -i 0
-# attributes: -a 1
-# -x {0.0 3.0 0 ------- null}
-
-dir_base = 'proj_3/Exp_1_Basic/'
-
 
 class Packet:
     def __init__(self, raw):
@@ -44,38 +31,25 @@ class Analyzer:
         self.tcps = [p for p in packets if p.type == 'tcp']
         self.cbrs = [p for p in packets if p.type == 'cbr']
 
-    def calc_throughputs(self, time_steps):
-        throughput = []
-        for i in range(1, len(time_steps)):
-            st = time_steps[i - 1]
-            ed = time_steps[i]
-            throughput.append(
-                sum([
-                    p.size / 1000 for p in self.tcps
-                    if p.event == 'r' and p.dest == 3 and (st <= p.time < ed)
-                ]) / (ed - st))
+    def calc_throughput(self, st, ed):
+        throughput = sum([
+            p.size / 1000 for p in self.tcps
+            if p.event == 'r' and p.dest == 3 and (st <= p.time < ed)
+        ]) / (ed - st)
         return throughput
-
-    def plot(self, x, y):
-        plt.plot(x, y, 'o-')
-        plt.grid(True)
-        plt.xticks(x)
-        # plt.savefig(dir_base + 'filename.jpg')
-        plt.show()
 
 
 def main():
-    # file_path = dir_base + 'exp_one_tahoe.nam'
-    file_path = dir_base + 'test.nam'
-    with open(file_path) as f:
-        events = f.readlines()
-    packets = [Packet(e) for e in events if e[0] in 'hrd+-']
-    analyzer = Analyzer(packets)
-    x = range(1, 11)
-    y = analyzer.calc_throughputs(
-        range(10, 21, 10))
-    print(y)
-    # analyzer.plot(x, y)
+    for tcp in ['Tahoe', 'Reno', 'NewReno', 'Vegas']:
+        print('# {} ######'.format(tcp))
+        for bw in range(1, 11):
+            file_path = 'proj_3/Exp_1_Basic/logs/{}_{}.log'.format(tcp, bw)
+            with open(file_path) as f:
+                events = f.readlines()
+            packets = [Packet(e) for e in events if e[0] in 'hrd+-']
+            analyzer = Analyzer(packets)
+            y = analyzer.calc_throughput(10, 20)
+            print(y)
 
 
 if __name__ == '__main__':

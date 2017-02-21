@@ -1,12 +1,16 @@
+set tcpType [lindex $argv 0]
+set rate [lindex $argv 1]
+set trace_file [lindex $argv 2]
+
 set ns [new Simulator]
-set nf [open test.nam w]
+set nf [open $trace_file w]
 $ns namtrace-all $nf
 
 proc finish {} {
-        global ns nf
-        $ns flush-trace
-        close $nf
-        exit 0
+  global ns nf
+  $ns flush-trace
+  close $nf
+  exit 0
 }
 
 # Create topology
@@ -28,7 +32,7 @@ $ns duplex-link $n3 $n6 10Mb 10ms DropTail
 $ns queue-limit $n2 $n3 10
 
 # connection n1-n4 TCP
-set tcp [new Agent/TCP/Reno]
+set tcp [new $tcpType]
 $tcp set class_ 2
 $ns attach-agent $n1 $tcp
 set sink [new Agent/TCPSink]
@@ -54,7 +58,7 @@ set cbr [new Application/Traffic/CBR]
 $cbr attach-agent $udp
 $cbr set type_ CBR
 $cbr set packet_size_ 1000
-$cbr set rate_ 1Mb
+$cbr set rate_ ${rate}Mb
 $cbr set random_ false
 
 $ns at 0 "$ftp start"
