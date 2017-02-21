@@ -57,20 +57,19 @@ $cbr set packet_size_ 1000
 $cbr set rate_ 1Mb
 $cbr set random_ false
 
-$ns at 0.1 "$ftp start"
-$ns at 0.4 "$cbr start"
-$ns at 0.8 "$cbr set rate_ 2Mb"
-$ns at 1.0 "$cbr set rate_ 3Mb"
-$ns at 1.2 "$cbr set rate_ 4Mb"
-$ns at 1.4 "$cbr set rate_ 5Mb"
-$ns at 1.6 "$cbr set rate_ 6Mb"
-$ns at 1.8 "$cbr set rate_ 7Mb"
-$ns at 2.0 "$cbr set rate_ 8Mb"
-$ns at 2.2 "$cbr set rate_ 9Mb"
-$ns at 2.4 "$cbr set rate_ 10Mb"
-$ns at 2.6 "$cbr stop"
-$ns at 2.8 "$ftp stop"
-$ns at 3.0 "$ns halt"
+$ns at 0 "$ftp start"
+$ns at 10 "$cbr start"
+$ns at 20 "$cbr set rate_ 2Mb"
+$ns at 30 "$cbr set rate_ 3Mb"
+$ns at 40 "$cbr set rate_ 4Mb"
+$ns at 50 "$cbr set rate_ 5Mb"
+$ns at 60 "$cbr set rate_ 6Mb"
+$ns at 70 "$cbr set rate_ 7Mb"
+$ns at 80 "$cbr set rate_ 8Mb"
+$ns at 90 "$cbr set rate_ 9Mb"
+$ns at 100 "$cbr set rate_ 10Mb"
+$ns at 110 "$cbr stop"
+$ns at 110 "$ftp stop"
+$ns at 110 "$ns halt"
 
 $ns run
-
