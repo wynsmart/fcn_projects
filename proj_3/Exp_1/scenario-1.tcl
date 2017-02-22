@@ -22,11 +22,11 @@ set n5 [$ns node]
 set n6 [$ns node]
 
 # create all links
-$ns duplex-link $n1 $n2 10Mb 3ms DropTail
-$ns duplex-link $n5 $n2 10Mb 3ms DropTail
-$ns duplex-link $n2 $n3 10Mb 3ms DropTail
-$ns duplex-link $n3 $n4 10Mb 3ms DropTail
-$ns duplex-link $n3 $n6 10Mb 3ms DropTail
+$ns duplex-link $n1 $n2 10Mb 5ms DropTail
+$ns duplex-link $n5 $n2 10Mb 5ms DropTail
+$ns duplex-link $n2 $n3 10Mb 5ms DropTail
+$ns duplex-link $n3 $n4 10Mb 5ms DropTail
+$ns duplex-link $n3 $n6 10Mb 5ms DropTail
 
 # queue limit for link n2-n3
 $ns queue-limit $n2 $n3 10

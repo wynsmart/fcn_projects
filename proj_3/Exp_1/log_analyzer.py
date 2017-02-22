@@ -76,9 +76,9 @@ class Analyzer:
         return '{:.2f}'.format(droprate)
 
 
-def main():
+def exp1(scenario):
     tcpTypes = ['Tahoe', 'Reno', 'NewReno', 'Vegas']
-    with open('data.csv', mode='w') as data_f:
+    with open('data-{}.csv'.format(scenario), mode='w') as data_f:
         header = ','.join(['BW'] + tcpTypes * 3)
         print(header)
         data_f.write('{}\n'.format(header))
@@ -87,8 +87,9 @@ def main():
             latencies = []
             droprates = []
             for tcp in tcpTypes:
-                file_path = 'logs/{}_{}.log'.format(tcp, bw)
-                with open(file_path) as logf:
+                log_dir = 'logs/scenario-{}/'.format(scenario)
+                log_file = log_dir + '{}_{}.log'.format(tcp, bw)
+                with open(log_file) as logf:
                     events = logf.readlines()
                 analyzer = Analyzer(events)
                 throughputs.append(analyzer.calc_throughput())
@@ -100,4 +101,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    exp1(1)
+    exp1(2)
