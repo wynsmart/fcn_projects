@@ -69,28 +69,28 @@ class Analyzer:
         return '{:.2f}'.format(avg_latency)
 
 
-def exp3_1():
-    cbr_bw = 8
-    with open('data-1.csv', mode='w') as data_f:
+def exp3(scenario):
+    with open('data-{}.csv'.format(scenario), mode='w') as data_f:
         tcpTypes = ['Reno', 'Sack']
         queueAlgos = ['DropTail', 'RED']
         pairs = []
         analyzers = []
         for q in queueAlgos:
             for tcp in tcpTypes:
-                log_dir = 'logs/scenario-1/'
-                log_file = log_dir + '{}_{}_{}.log'.format(q, tcp, cbr_bw)
+                log_dir = 'logs/scenario-{}/'.format(scenario)
+                log_file = log_dir + '{}_{}.log'.format(q, tcp)
                 with open(log_file) as logf:
                     events = logf.readlines()
                 pair = '{}/{}'.format(q, tcp)
                 pairs.append(pair)
                 analyzers.append(Analyzer(events))
-        header = ','.join(['Time'] + pairs * 2)
+        header = ','.join(['Time', 'CBR'] + pairs * 2)
         print(header)
         data_f.write('{}\n'.format(header))
         for t in range(30):
             throughputs = []
             latencies = []
+            throughputs.append(analyzers[0].calc_throughput(t, '5.0'))
             for analyzer in analyzers:
                 throughputs.append(analyzer.calc_throughput(t, '3.0'))
                 latencies.append(analyzer.calc_latency(t, '0.0'))
@@ -100,6 +100,5 @@ def exp3_1():
 
 
 if __name__ == '__main__':
-    exp = [None, exp3_1]
     scenario = int(sys.argv[1])
-    exp[scenario]()
+    exp3(scenario)

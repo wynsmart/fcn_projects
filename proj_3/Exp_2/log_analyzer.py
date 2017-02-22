@@ -37,9 +37,9 @@ class Analyzer:
         # unit in Mbit/s
         dest = int(float(x_dest))
         throughput = sum([
-            p.size * 8 / 1000000 for p in self.packets
+            p.size for p in self.packets
             if p.event == 'r' and p.dest == dest and p.x_dest == x_dest
-        ]) / (self.ed - self.st)
+        ]) / (self.ed - self.st) * 8 / 1000000
         return '{:.3f}'.format(throughput)
 
     def calc_latency(self, x_src):

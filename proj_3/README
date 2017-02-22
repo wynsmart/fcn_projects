@@ -46,10 +46,7 @@ TCP2: N5 --> N6
 we have two variables, so designed four sub-scenarios
 * delay between starting TCP1 and TCP2 (0 to max)
 * CBR bandwidth (0 to max)
-1. concurrently start TCP1 and TCP2, then increase bandwidth from 0 to max;
-2. fixed bandwidth at 0, start TCP1 and TCP2 with different delays
-3. fixed bandwidth at half max, start TCP1 and TCP2 with different delays
-4. fixed bandwidth at max, start TCP1 and TCP2 with different delays
+concurrently start TCP1 and TCP2, then increase bandwidth from 0 to max;
 
 repeat with TCP1/TCP2 as
 * Reno/Reno
@@ -74,11 +71,8 @@ y: throughput, latency
 TCP: N1 --> N4
 CBR: N5 --> N6
 
-1. start TCP before CBR
-2. start CBR before TCP, repeat
-3. start by using a small CBR and increase CBR exponentially
-4. start with small TCP bandwidth and increase bandwidth
-5. vary queue size
+1. CBR bandwidth = 6MB
+1. CBR bandwidth = 8MB
 
 repeat each scenario with TCP Reno and SACK, using queuing algorithms: DropTail and RED
 

@@ -10,24 +10,24 @@ queues = {
     'DropTail': 'DropTail',
     'RED': 'RED',
 }
-cbr_bw = 8
 
 
-def genData_1(tcl_src):
+def genData(scenario):
+    cbr_bws = [None, 6, 8]
+    tcl_src = 'scenario-1.tcl'
     for q in queues:
         for tcp in tcps:
-            print('Scenario: 1, Queue: {} TCP: {}, CBR: {}MB'.format(q, tcp,
-                                                                     cbr_bw))
-            log_dir = 'logs/scenario-1/'
+            print('Scenario: {}, Queue: {} TCP: {}, CBR: {}MB'.format(
+                scenario, q, tcp, cbr_bws[scenario]))
+            log_dir = 'logs/scenario-{}/'.format(scenario)
             os.makedirs(log_dir, exist_ok=True)
-            log_file = log_dir + '{}_{}_{}.log'.format(q, tcp, cbr_bw)
+            log_file = log_dir + '{}_{}.log'.format(q, tcp)
             subprocess.call(
                 'ns {} {} {} {} {}'.format(tcl_src, queues[q], tcps[tcp],
-                                           cbr_bw, log_file),
+                                           cbr_bws[scenario], log_file),
                 shell=True)
 
 
 if __name__ == '__main__':
-    exp = [None, genData_1]
     scenario = int(sys.argv[1])
-    exp[scenario]('scenario-{}.tcl'.format(scenario))
+    genData(scenario)
