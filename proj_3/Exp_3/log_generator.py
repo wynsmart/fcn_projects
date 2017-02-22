@@ -10,20 +10,20 @@ queues = {
     'DropTail': 'DropTail',
     'RED': 'RED',
 }
-bw = 8
+cbr_bw = 8
 
 
 def genData_1(tcl_src):
     for q in queues:
         for tcp in tcps:
             print('Scenario: 1, Queue: {} TCP: {}, CBR: {}MB'.format(q, tcp,
-                                                                     bw))
+                                                                     cbr_bw))
             log_dir = 'logs/scenario-1/'
             os.makedirs(log_dir, exist_ok=True)
-            log_file = log_dir + '{}_{}_{}.log'.format(q, tcp, bw)
+            log_file = log_dir + '{}_{}_{}.log'.format(q, tcp, cbr_bw)
             subprocess.call(
-                'ns {} {} {} {} {}'.format(tcl_src, queues[q], tcps[tcp], bw,
-                                           log_file),
+                'ns {} {} {} {} {}'.format(tcl_src, queues[q], tcps[tcp],
+                                           cbr_bw, log_file),
                 shell=True)
 
 

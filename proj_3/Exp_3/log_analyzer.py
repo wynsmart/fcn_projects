@@ -70,7 +70,7 @@ class Analyzer:
 
 
 def exp3_1():
-    bw = 8
+    cbr_bw = 8
     with open('data-1.csv', mode='w') as data_f:
         tcpTypes = ['Reno', 'Sack']
         queueAlgos = ['DropTail', 'RED']
@@ -79,7 +79,7 @@ def exp3_1():
         for q in queueAlgos:
             for tcp in tcpTypes:
                 log_dir = 'logs/scenario-1/'
-                log_file = log_dir + '{}_{}_{}.log'.format(q, tcp, bw)
+                log_file = log_dir + '{}_{}_{}.log'.format(q, tcp, cbr_bw)
                 with open(log_file) as logf:
                     events = logf.readlines()
                 pair = '{}/{}'.format(q, tcp)
