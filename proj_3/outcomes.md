@@ -10,16 +10,17 @@
   * Vegas
 
 * Is there an overall "best" TCP variant in this experiment, or does the "best" variant vary depending on other circumstances?
-  * Vegas is better under some circumstances
+  * Vegas is better under most circumstances
 
 
 ## E2
 
 * Are the different combinations of variants fair to each other?
-  * Reno/Reno and Vegas/Vegas are fair. NewReno/Reno, NewReno have more bandwidth share as it implements Fast Retransmission instead of packet drop. Similarly, for NewReno/Vegas, it is observed that Vegas performs poorly as it detects network congestion early. Hence, though it performs well individually, it suffers with low bandwidth utilisation when paired with NewReno in the network.
+  * Reno/Reno and Vegas/Vegas are fair. NewReno/Reno amd NewReno/Vegas are combinations that are unfair to each other.
 
 * Are there combinations that are unfair, and if so, why is the combination unfair? To explain unfairness, you will need to think critically about how the protocols are implemented and why the different choices in different TCP variants can impact fairness.
-  * ss
+  * For NewReno/Vegas, initially NewReno uses a higher bandwidth of the channel but later as it support fast retrasnmit, Vegas starts dominating the channel bandwidth. This can be explained by the fact that Vegas does not wait for 3 duplicate ACKs before re-transmitting a lost packet. Hence higher throughput on part of Vegas. Vegas is unfair to NewReno because there are fewer retransmits due to it's slow start and congestion avoidance algorithm.
+  * NewReno/Reno, NewReno have more bandwidth share as it implements Fast Retransmission instead of packet drop. Similarly, for NewReno/Vegas, it is observed that Vegas performs poorly as it detects network congestion early. Hence, though it performs well individually, it suffers with low bandwidth utilisation when paired with NewReno in the network. 
 
 
 ## E3
