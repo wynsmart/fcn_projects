@@ -22,11 +22,11 @@ set n5 [$ns node]
 set n6 [$ns node]
 
 # create all links
-$ns duplex-link $n1 $n2 10Mb 10ms DropTail
-$ns duplex-link $n5 $n2 10Mb 10ms DropTail
-$ns duplex-link $n2 $n3 10Mb 10ms DropTail
-$ns duplex-link $n3 $n4 10Mb 10ms DropTail
-$ns duplex-link $n3 $n6 10Mb 10ms DropTail
+$ns duplex-link $n1 $n2 10Mb 3ms DropTail
+$ns duplex-link $n5 $n2 10Mb 3ms DropTail
+$ns duplex-link $n2 $n3 10Mb 3ms DropTail
+$ns duplex-link $n3 $n4 10Mb 3ms DropTail
+$ns duplex-link $n3 $n6 10Mb 3ms DropTail
 
 # queue limit for link n2-n3
 $ns queue-limit $n2 $n3 10
@@ -63,8 +63,8 @@ $cbr set random_ false
 
 $ns at 0 "$ftp start"
 $ns at 0 "$cbr start"
-$ns at 20 "$cbr stop"
-$ns at 20 "$ftp stop"
-$ns at 20 "$ns halt"
+$ns at 15 "$cbr stop"
+$ns at 15 "$ftp stop"
+$ns at 15 "$ns halt"
 
 $ns run
