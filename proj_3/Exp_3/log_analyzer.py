@@ -28,32 +28,35 @@ class Packet:
 
 class Analyzer:
     def __init__(self, events):
-        self.st = 10
-        self.ed = 15
+        self.t_st = 0
+        self.t_ed = 30
         packets = [Packet(e) for e in events if e[0] in 'r+']
-        self.packets = [p for p in packets if self.st <= p.time < self.ed]
+        self.t_packets = dict.fromkeys(range(self.t_st, self.t_ed), [])
+        for p in packets:
+            t = int(float(p.time))
+            self.t_packets[t].append(p)
 
-    def calc_throughput(self, x_dest):
+    def calc_throughput(self, t, x_dest):
         # unit in Mbit/s
         dest = int(float(x_dest))
         throughput = sum([
-            p.size * 8 / 1000000 for p in self.packets
+            p.size * 8 / 1000000 for p in self.t_packets[t]
             if p.event == 'r' and p.dest == dest and p.x_dest == x_dest
-        ]) / (self.ed - self.st)
+        ]) / (self.t_ed - self.t_st)
         return '{:.3f}'.format(throughput)
 
-    def calc_latency(self, x_src):
+    def calc_latency(self, t, x_src):
         # unit in ms
         src = int(float(x_src))
         tcps = {
             p.x_seq: p
-            for p in self.packets
+            for p in self.t_packets[t]
             if p.type == 'tcp' and p.event == '+' and p.src == src and p.x_src
             == x_src
         }
         acks = {
             p.x_seq: p
-            for p in self.packets
+            for p in self.t_packets[t]
             if p.type == 'ack' and p.event == 'r' and p.dest == src and
             p.x_dest == x_src
         }
@@ -65,45 +68,33 @@ class Analyzer:
         avg_latency = sum(latencies) / len(latencies) * 1000
         return '{:.2f}'.format(avg_latency)
 
-    def calc_droprate(self, x_src):
-        # unit in cents
-        src = int(float(x_src))
-        sents = len([
-            1 for p in self.packets
-            if p.type == 'tcp' and p.event == '+' and p.src == src and p.x_src
-            == x_src
-        ])
-        recvs = len([
-            1 for p in self.packets
-            if p.type == 'ack' and p.event == 'r' and p.dest == src and
-            p.x_dest == x_src
-        ])
-        if recvs == 0:
-            return ''
-        droprate = (sents - recvs) / sents * 100
-        return '{:.2f}'.format(droprate)
-
 
 def exp3_1():
+    bw = 5
     with open('data-1.csv', mode='w') as data_f:
         tcpTypes = ['Reno', 'Sack']
-        header = ','.join(['BW'] + tcpTypes * 2)
+        queueAlgos = ['DropTail', 'RED']
+        pairs = []
+        analyzers = []
+        for q in queueAlgos:
+            for tcp in tcpTypes:
+                log_dir = 'logs/scenario-1/'
+                log_file = log_dir + '{}_{}_{}.log'.format(q, tcp, bw)
+                with open(log_file) as logf:
+                    events = logf.readlines()
+                pair = '{}/{}'.format(q, tcp)
+                pairs.append(pair)
+                analyzers.append(Analyzer(events))
+        header = ','.join(['Time'] + pairs * 2)
         print(header)
         data_f.write('{}\n'.format(header))
-        for bw in range(1, 11):
+        for t in range(30):
             throughputs = []
             latencies = []
-            droprates = []
-            log_dir = 'logs/scenario-2/'
-            log_file = log_dir + '{}.log'.format(bw)
-            with open(log_file) as logf:
-                events = logf.readlines()
-            analyzer = Analyzer(events)
-            for i in range(4):
-                throughputs.append(analyzer.calc_throughput('3.{}'.format(i)))
-                latencies.append(analyzer.calc_latency('0.{}'.format(i)))
-                droprates.append(analyzer.calc_droprate('0.{}'.format(i)))
-            line = ','.join([str(bw)] + throughputs + latencies + droprates)
+            for analyzer in analyzers:
+                throughputs.append(analyzer.calc_throughput(t, '3.0'))
+                latencies.append(analyzer.calc_latency(t, '0.0'))
+            line = ','.join([str(t)] + throughputs + latencies)
             print(line)
             data_f.write('{}\n'.format(line))
 

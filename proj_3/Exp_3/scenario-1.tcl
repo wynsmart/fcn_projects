@@ -58,6 +58,6 @@ $ns at 0 "$ftp start"
 $ns at 10 "$cbr start"
 $ns at 25 "$cbr stop"
 $ns at 30 "$ftp stop"
-$ns at 20 "$ns halt"
+$ns at 30 "$ns halt"
 
 $ns run
