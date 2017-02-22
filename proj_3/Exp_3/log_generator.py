@@ -10,7 +10,7 @@ queues = {
     'DropTail': 'DropTail',
     'RED': 'RED',
 }
-bw = 5
+bw = 8
 
 
 def genData_1(tcl_src):

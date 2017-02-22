@@ -22,7 +22,7 @@ $ns duplex-link $n2 $n3 10Mb 5ms $queue
 $ns duplex-link $n3 $n4 10Mb 5ms $queue
 $ns duplex-link $n3 $n6 10Mb 5ms $queue
 # queue limit for link n2-n3
-$ns queue-limit $n2 $n3 10
+$ns queue-limit $n2 $n3 20
 
 # connection n1-n4 TCP
 set tcp [new $tcpType]

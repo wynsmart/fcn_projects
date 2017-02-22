@@ -31,18 +31,18 @@ class Analyzer:
         self.t_st = 0
         self.t_ed = 30
         packets = [Packet(e) for e in events if e[0] in 'r+']
-        self.t_packets = dict.fromkeys(range(self.t_st, self.t_ed), [])
+        self.t_packets = {t: [] for t in range(self.t_st, self.t_ed)}
         for p in packets:
-            t = int(float(p.time))
+            t = int(p.time)
             self.t_packets[t].append(p)
 
     def calc_throughput(self, t, x_dest):
         # unit in Mbit/s
         dest = int(float(x_dest))
         throughput = sum([
-            p.size * 8 / 1000000 for p in self.t_packets[t]
+            p.size for p in self.t_packets[t]
             if p.event == 'r' and p.dest == dest and p.x_dest == x_dest
-        ]) / (self.t_ed - self.t_st)
+        ]) * 8 / 1000000
         return '{:.3f}'.format(throughput)
 
     def calc_latency(self, t, x_src):
@@ -70,7 +70,7 @@ class Analyzer:
 
 
 def exp3_1():
-    bw = 5
+    bw = 8
     with open('data-1.csv', mode='w') as data_f:
         tcpTypes = ['Reno', 'Sack']
         queueAlgos = ['DropTail', 'RED']
