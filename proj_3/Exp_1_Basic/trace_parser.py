@@ -38,7 +38,7 @@ class Analyzer:
             p.size * 8 / 1000000 for p in self.packets
             if p.event == 'r' and p.dest == 3
         ]) / (self.ed - self.st)
-        return '{:3f}'.format(throughput)
+        return '{:.3f}'.format(throughput)
 
     def calc_latency(self):
         # unit in ms
@@ -58,7 +58,7 @@ class Analyzer:
         if not latencies:
             return ''
         avg_latency = sum(latencies) / len(latencies) * 1000
-        return '{:.3f}'.format(avg_latency)
+        return '{:.2f}'.format(avg_latency)
 
     def calc_droprate(self):
         # unit in cents
@@ -73,7 +73,7 @@ class Analyzer:
         if recvs == 0:
             return ''
         droprate = (sents - recvs) / sents * 100
-        return '{:.3f}'.format(droprate)
+        return '{:.2f}'.format(droprate)
 
 
 def main():
