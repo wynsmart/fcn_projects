@@ -6,13 +6,6 @@ set ns [new Simulator]
 set nf [open $trace_file w]
 $ns namtrace-all $nf
 
-proc finish {} {
-  global ns nf
-  $ns flush-trace
-  close $nf
-  exit 0
-}
-
 # Create topology
 set n1 [$ns node]
 set n2 [$ns node]
