@@ -1,13 +1,6 @@
 set ns [new Simulator]
-set nf [open test.nam w]
+set nf [open exp_3_tcp_first_reno_droptail.nam w]
 $ns namtrace-all $nf
-
-proc finish {} {
-        global ns nf
-        $ns flush-trace
-        close $nf
-        exit 0
-}
 
 # Create topology
 set n1 [$ns node]
@@ -43,9 +36,9 @@ $ftp set type_ FTP
 
 # connection n2-n3 UDP
 set udp [new Agent/UDP]
-$ns attach-agent $n2 $udp
+$ns attach-agent $n5 $udp
 set udpsink [new Agent/Null]
-$ns attach-agent $n3 $udpsink
+$ns attach-agent $n6 $udpsink
 $ns connect $udp $udpsink
 $udp set fid_ 2
 
@@ -54,13 +47,13 @@ set cbr [new Application/Traffic/CBR]
 $cbr attach-agent $udp
 $cbr set type_ CBR
 $cbr set packet_size_ 1000
-$cbr set rate_ 1Mb
+$cbr set rate_ 5Mb
 $cbr set random_ false
 
 $ns at 0 "$ftp start"
-$ns at 0 "$cbr start"
-$ns at 20 "$cbr stop"
-$ns at 20 "$ftp stop"
-$ns at 20 "$ns halt"
+$ns at 0.8 "$cbr start"
+$ns at 5.0 "$cbr stop"
+$ns at 5.2 "$ftp stop"
+$ns at 5. "$ns halt"
 
 $ns run
