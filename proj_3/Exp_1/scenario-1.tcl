@@ -1,9 +1,9 @@
 set tcpType [lindex $argv 0]
 set rate [lindex $argv 1]
-set trace_file [lindex $argv 2]
+set log_file [lindex $argv 2]
 
 set ns [new Simulator]
-set nf [open $trace_file w]
+set nf [open $log_file w]
 $ns namtrace-all $nf
 
 # Create topology

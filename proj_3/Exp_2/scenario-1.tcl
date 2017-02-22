@@ -1,17 +1,14 @@
-set ns [new Simulator]
+set tcpType1 [lindex $argv 0]
+set tcpType2 [lindex $argv 1]
+set rate [lindex $argv 2]
+set log_file [lindex $argv 3]
 
+set ns [new Simulator]
 $ns color 1 Blue
 $ns color 2 Red
 
-set nf [open exp_one_vegas_vegas.nam w]
+set nf [open $log_file w]
 $ns namtrace-all $nf
-
-proc finish {} {
-        global ns nf
-        $ns flush-trace
-        close $nf
-        exit 0
-}
 
 # Create topology
 set n1 [$ns node]
@@ -22,18 +19,18 @@ set n5 [$ns node]
 set n6 [$ns node]
 
 # create all links
-$ns duplex-link $n1 $n2 10Mb 10ms DropTail
-$ns duplex-link $n5 $n2 10Mb 10ms DropTail
-$ns duplex-link $n2 $n3 10Mb 10ms DropTail
-$ns duplex-link $n3 $n4 10Mb 10ms DropTail
-$ns duplex-link $n3 $n6 10Mb 10ms DropTail
+$ns duplex-link $n1 $n2 10Mb 5ms DropTail
+$ns duplex-link $n5 $n2 10Mb 5ms DropTail
+$ns duplex-link $n2 $n3 10Mb 5ms DropTail
+$ns duplex-link $n3 $n4 10Mb 5ms DropTail
+$ns duplex-link $n3 $n6 10Mb 5ms DropTail
 
 # queue limit for link n2-n3
 $ns queue-limit $n2 $n3 10
 
-# connection n1-n4 and n5- n6 TCP
-set tcp1 [new Agent/TCP/Vegas]
-set tcp2 [new Agent/TCP/Vegas]
+# connection n1-n4 and n5-n6 TCP
+set tcp1 [new $tcpType1]
+set tcp2 [new $tcpType2]
 $tcp1 set class_ 2
 $tcp2 set class_ 2
 $ns attach-agent $n1 $tcp1
@@ -69,25 +66,15 @@ set cbr [new Application/Traffic/CBR]
 $cbr attach-agent $udp
 $cbr set type_ CBR
 $cbr set packet_size_ 1000
-$cbr set rate_ 1Mb
+$cbr set rate_ ${rate}Mb
 $cbr set random_ false
 
-$ns at 0.1 "$ftp1 start"
-$ns at 0.1 "$ftp2 start"
-$ns at 0.4 "$cbr start"
-$ns at 0.8 "$cbr set rate_ 2Mb"
-$ns at 1.0 "$cbr set rate_ 3Mb"
-$ns at 1.2 "$cbr set rate_ 4Mb"
-$ns at 1.4 "$cbr set rate_ 5Mb"
-$ns at 1.6 "$cbr set rate_ 6Mb"
-$ns at 1.8 "$cbr set rate_ 7Mb"
-$ns at 2.0 "$cbr set rate_ 8Mb"
-$ns at 2.2 "$cbr set rate_ 9Mb"
-$ns at 2.4 "$cbr set rate_ 10Mb"
-$ns at 2.6 "$cbr stop"
-$ns at 2.8 "$ftp1 stop"
-$ns at 2.8 "$ftp2 stop"
-$ns at 3.0 "$ns halt"
+$ns at 0 "$ftp1 start"
+$ns at 0 "$ftp2 start"
+$ns at 0 "$cbr start"
+$ns at 15 "$cbr stop"
+$ns at 15 "$ftp1 stop"
+$ns at 15 "$ftp2 stop"
+$ns at 15 "$ns halt"
 
 $ns run
-
