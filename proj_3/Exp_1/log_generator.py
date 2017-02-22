@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 
 tcps = {
     'Tahoe': 'Agent/TCP',
@@ -22,5 +23,6 @@ def genData(scenario, tcl_src):
                 shell=True)
 
 
-for i in range(1, 3):
-    genData(i, 'scenario-{}.tcl'.format(i))
+if __name__ == '__main__':
+    scenario = int(sys.argv[1])
+    genData(scenario, 'scenario-{}.tcl'.format(scenario))

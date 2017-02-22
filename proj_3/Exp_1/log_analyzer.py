@@ -1,4 +1,5 @@
 import re
+import sys
 
 # throughput = sum(received_size) / time
 # latency = end_time - start_time
@@ -101,5 +102,5 @@ def exp1(scenario):
 
 
 if __name__ == '__main__':
-    exp1(1)
-    exp1(2)
+    scenario = int(sys.argv[1])
+    exp1(scenario)
