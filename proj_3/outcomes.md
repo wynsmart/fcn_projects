@@ -29,10 +29,10 @@
   * No
 
 * How does the end-to-end latency for the flows differ between DropTail and RED?
-  * aa
+  * The latency due to DropTail and RED queueing algorithms does not differ much. Based upon our experimental observations, DropTail and RED both have same Linear trends in the latency variations.
 
 * How does the TCP flow react to the creation of the CBR flow?
-  * aa
+  * As CBR flow starts, TCP latency increases with occasional variations, but it remains much higher than latency without CBR.
 
 * Is RED a good idea while dealing with SACK?
-  * aa
+  * RED does not affect the latency of SACK, but increases the throughput slightly as comapred to DropTail. Hence RED is suitable to deal with SACK
