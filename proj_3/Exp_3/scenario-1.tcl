@@ -60,4 +60,5 @@ $ns at 25 "$cbr stop"
 $ns at 30 "$ftp stop"
 $ns at 30 "$ns halt"
 
+$defaultRNG seed 0
 $ns run

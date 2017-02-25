@@ -1,0 +1,15 @@
+#!/bin/bash
+
+export PATH=/course/cs4700f12/ns-allinone-2.35/bin/:$PATH
+export cwd=$(pwd)
+
+cd $cwd/Exp_1
+python3 log_generator.py 1 && python3 log_analyzer.py 1
+python3 log_generator.py 2 && python3 log_analyzer.py 2
+
+cd $cwd/Exp_2
+python3 log_generator.py 1 && python3 log_analyzer.py 1
+python3 log_generator.py 2 && python3 log_analyzer.py 2
+
+cd $cwd/Exp_3
+python3 log_generator.py 1 && python3 log_analyzer.py 1

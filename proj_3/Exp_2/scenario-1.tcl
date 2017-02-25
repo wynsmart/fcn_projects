@@ -77,4 +77,5 @@ $ns at 15 "$ftp1 stop"
 $ns at 15 "$ftp2 stop"
 $ns at 15 "$ns halt"
 
+$defaultRNG seed 0
 $ns run
