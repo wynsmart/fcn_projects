@@ -1,4 +1,5 @@
 import re
+import os
 import sys
 
 # throughput = sum(received_size) / time
@@ -104,6 +105,7 @@ def exp2_1():
                 log_file = log_dir + '{}_{}_{}.log'.format(tcp1, tcp2, bw)
                 with open(log_file) as logf:
                     events = logf.readlines()
+                os.remove(log_file)
                 analyzer = Analyzer(events)
                 throughputs.append(analyzer.calc_throughput('3.0'))
                 latencies.append(analyzer.calc_latency('0.0'))
@@ -131,6 +133,7 @@ def exp2_2():
             log_file = log_dir + '{}.log'.format(bw)
             with open(log_file) as logf:
                 events = logf.readlines()
+            os.remove(log_file)
             analyzer = Analyzer(events)
             for i in range(4):
                 throughputs.append(analyzer.calc_throughput('3.{}'.format(i)))

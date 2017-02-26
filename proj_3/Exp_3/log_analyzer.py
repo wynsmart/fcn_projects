@@ -1,4 +1,5 @@
 import re
+import os
 import sys
 
 # throughput = sum(received_size) / time
@@ -81,6 +82,7 @@ def exp3(scenario):
                 log_file = log_dir + '{}_{}.log'.format(q, tcp)
                 with open(log_file) as logf:
                     events = logf.readlines()
+                os.remove(log_file)
                 pair = '{}/{}'.format(q, tcp)
                 pairs.append(pair)
                 analyzers.append(Analyzer(events))
