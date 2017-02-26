@@ -14,10 +14,12 @@ bandwidths = range(1, 11)
 def genData(scenario, tcl_src):
     for tcp in tcps:
         for bw in bandwidths:
+            # enumerate over (tcp, cbr_bandwidth) tuples
             print('Scenario: {}, TCP: {}, CBR: {}MB'.format(scenario, tcp, bw))
             log_dir = 'logs/scenario-{}/'.format(scenario)
             os.makedirs(log_dir, exist_ok=True)
             log_file = log_dir + '{}_{}.log'.format(tcp, bw)
+            # execute ns2 to generate trace files
             subprocess.call(
                 'ns {} {} {} {}'.format(tcl_src, tcps[tcp], bw, log_file),
                 shell=True)

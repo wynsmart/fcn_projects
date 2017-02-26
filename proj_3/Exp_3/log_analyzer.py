@@ -1,30 +1,6 @@
-import re
 import os
 import sys
-
-# throughput = sum(received_size) / time
-# latency = end_time - start_time
-# droprate = (sent_packets - received_packets) / sent_packets
-
-
-class Packet:
-    def __init__(self, raw):
-        self.raw = raw
-
-        m = re.findall(r'-[a-z] (\{.+\}|\S+)', self.raw)
-        self.event = self.raw[0]
-        self.time = float(m[0])
-        self.src = int(m[1])
-        self.dest = int(m[2])
-        self.type = m[3]
-        self.size = int(m[4])
-        self.conv = int(m[5])
-        self.id = int(m[6])
-
-        x_m = re.match(r'\{(\S+) (\S+) (\S+).+\}', m[8])
-        self.x_src = x_m.group(1)
-        self.x_dest = x_m.group(2)
-        self.x_seq = x_m.group(3)
+from packet import Packet
 
 
 class Analyzer:
@@ -38,7 +14,9 @@ class Analyzer:
             self.t_packets[t].append(p)
 
     def calc_throughput(self, t, x_dest):
-        # unit in Mbit/s
+        '''throughput = sum(received_size) / time
+        unit in Mbit/s
+        '''
         dest = int(float(x_dest))
         throughput = sum([
             p.size for p in self.t_packets[t]
@@ -47,7 +25,9 @@ class Analyzer:
         return '{:.3f}'.format(throughput)
 
     def calc_latency(self, t, x_src):
-        # unit in ms
+        '''latency = end_time - start_time
+        unit in ms
+        '''
         src = int(float(x_src))
         tcps = {
             p.x_seq: p
@@ -71,6 +51,10 @@ class Analyzer:
 
 
 def exp3(scenario):
+    '''Analyze scenarios of experiment 3
+    refer README for more details on scenario settings
+    generates csv files for futher plotting
+    '''
     with open('data-{}.csv'.format(scenario), mode='w') as data_f:
         tcpTypes = ['Reno', 'Sack']
         queueAlgos = ['DropTail', 'RED']

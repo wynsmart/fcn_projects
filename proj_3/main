@@ -2,14 +2,23 @@
 
 export PATH=/course/cs4700f12/ns-allinone-2.35/bin/:$PATH
 export cwd=$(pwd)
+export PYTHONPATH=$cwd
 
+echo "Experiment #1"
 cd $cwd/Exp_1
+# scenario 1
 python3 log_generator.py 1 && python3 log_analyzer.py 1
+# scenario 2
 python3 log_generator.py 2 && python3 log_analyzer.py 2
 
+echo "Experiment #2"
 cd $cwd/Exp_2
+# scenario 1
 python3 log_generator.py 1 && python3 log_analyzer.py 1
+# scenario 2
 python3 log_generator.py 2 && python3 log_analyzer.py 2
 
+echo "Experiment #3"
 cd $cwd/Exp_3
+# scenario 1
 python3 log_generator.py 1 && python3 log_analyzer.py 1

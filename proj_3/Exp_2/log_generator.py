@@ -19,10 +19,12 @@ def genData_1(tcl_src):
         ('NewReno', 'Vegas'),
     ]:
         for bw in bandwidths:
+            # enumerate over (tcp1, tcp2, cbr_bandwidth) tuples
             print('Scenario: 1, TCP: {}/{}, CBR: {}MB'.format(tcp1, tcp2, bw))
             log_dir = 'logs/scenario-1/'
             os.makedirs(log_dir, exist_ok=True)
             log_file = log_dir + '{}_{}_{}.log'.format(tcp1, tcp2, bw)
+            # execute ns2 to generate trace files
             subprocess.call(
                 'ns {} {} {} {} {}'.format(tcl_src, tcps[tcp1], tcps[tcp2], bw,
                                            log_file),
@@ -31,10 +33,12 @@ def genData_1(tcl_src):
 
 def genData_2(tcl_src):
     for bw in bandwidths:
+        # enumerate over cbr_bandwidth
         print('Scenario: 2, CBR: {}MB'.format(bw))
         log_dir = 'logs/scenario-2/'
         os.makedirs(log_dir, exist_ok=True)
         log_file = log_dir + '{}.log'.format(bw)
+        # execute ns2 to generate trace files
         subprocess.call(
             'ns {} {} {}'.format(tcl_src, bw, log_file), shell=True)
 

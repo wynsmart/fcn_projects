@@ -17,11 +17,13 @@ def genData(scenario):
     tcl_src = 'scenario-1.tcl'
     for q in queues:
         for tcp in tcps:
+            # enumerate over (queue_algorithm, tcp) tuples
             print('Scenario: {}, Queue: {} TCP: {}, CBR: {}MB'.format(
                 scenario, q, tcp, cbr_bws[scenario]))
             log_dir = 'logs/scenario-{}/'.format(scenario)
             os.makedirs(log_dir, exist_ok=True)
             log_file = log_dir + '{}_{}.log'.format(q, tcp)
+            # execute ns2 to generate trace files
             subprocess.call(
                 'ns {} {} {} {} {}'.format(tcl_src, queues[q], tcps[tcp],
                                            cbr_bws[scenario], log_file),
