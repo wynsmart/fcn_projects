@@ -6,7 +6,7 @@ from packet import Packet
 class Analyzer:
     def __init__(self, events):
         self.t_st = 0
-        self.t_ed = 30
+        self.t_ed = 20
         packets = [Packet(e) for e in events if e[0] in 'r+']
         self.t_packets = {t: [] for t in range(self.t_st, self.t_ed)}
         for p in packets:
@@ -57,9 +57,9 @@ def exp3(scenario):
     '''
     with open('data-{}.csv'.format(scenario), mode='w') as data_f:
         tcpTypes = ['Reno', 'Sack']
-        queueAlgos = ['DropTail', 'RED']
+        queueAlgos = ['RED', 'DropTail']
         pairs = []
-        analyzers = []
+        analyzers = {}
         for q in queueAlgos:
             for tcp in tcpTypes:
                 log_dir = 'logs/scenario-{}/'.format(scenario)
@@ -69,17 +69,17 @@ def exp3(scenario):
                 os.remove(log_file)
                 pair = '{}/{}'.format(q, tcp)
                 pairs.append(pair)
-                analyzers.append(Analyzer(events))
+                analyzers[pair] = Analyzer(events)
         header = ','.join(['Time', 'CBR'] + pairs * 2)
         print(header)
         data_f.write('{}\n'.format(header))
-        for t in range(30):
+        for t in range(20):
             throughputs = []
             latencies = []
-            throughputs.append(analyzers[0].calc_throughput(t, '5.0'))
-            for analyzer in analyzers:
-                throughputs.append(analyzer.calc_throughput(t, '3.0'))
-                latencies.append(analyzer.calc_latency(t, '0.0'))
+            throughputs.append(analyzers[pairs[0]].calc_throughput(t, '5.0'))
+            for pair in pairs:
+                throughputs.append(analyzers[pair].calc_throughput(t, '3.0'))
+                latencies.append(analyzers[pair].calc_latency(t, '0.0'))
             line = ','.join([str(t)] + throughputs + latencies)
             print(line)
             data_f.write('{}\n'.format(line))

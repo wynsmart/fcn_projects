@@ -22,3 +22,5 @@ echo "Experiment #3"
 cd $cwd/Exp_3
 # scenario 1
 python3 log_generator.py 1 && python3 log_analyzer.py 1
+# scenario 2
+python3 log_generator.py 2 && python3 log_analyzer.py 2
