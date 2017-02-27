@@ -8,74 +8,19 @@ nuid: 001258979
 email: shah.sam@husky.neu.edu
 
 
-<TOPOLOGY>
-N1                      N4
-  \                    /
-   \                  /
-    N2--------------N3
-   /                  \
-  /                    \
-N5                      N6
+<USAGE>
+1. 'make' the project.
+2. Under the project root directory, execute './main', this will conduct simulations with NS2 on all experiments and scenarios, then parse the trace files, and generate csv files
+3. Open the csv files generated in each Exp_* directory with Excel, then plot and analyze the data.
 
 
-<EXPERIMENT 1>
-figures to plot
-x: CBR bandwidth
-y: throughput, latency, drops
+<WORK LOAD>
+Fan Yang:
+- Tune NS2 TCL script for designed scenarios
+- Parse NS2 trace files, then generate csv file for plotting with Excel
+- Observe results and analyze the findings
 
-# 1
-CBR: N2 --> N3
-TCP: N1 --> N4
-start TCP first, then start CBR. increase bandwidth from 0 to max, test the four TCPs variants.
-
-# 2
-CBR: N3 --> N2
-TCP: N1 --> N4
-change the CBR direction, repeat last scenario
-
-
-<EXPERIMENT 2>
-figures to plot
-x: CBR bandwidth
-y: throughput, latency, drops
-
-# 1
-CBR: N2 --> N3
-TCP1: N1 --> N4
-TCP2: N5 --> N6
-we have two variables, so designed four sub-scenarios
-* delay between starting TCP1 and TCP2 (0 to max)
-* CBR bandwidth (0 to max)
-concurrently start TCP1 and TCP2, then increase bandwidth from 0 to max;
-
-repeat with TCP1/TCP2 as
-* Reno/Reno
-* NewReno/Reno
-* Vegas/Vegas
-* NewReno/Vegas
-
-# 2
-CBR: N2 --> N3
-TCP1: N1 --> N4
-TCP2: N1 --> N4
-TCP3: N1 --> N4
-TCP4: N1 --> N4
-concurrently start four TCPs as (Tahoe/Reno/NewReno/Vegas), increase CBR rate (0 to max)
-
-
-<EXPERIMENT 3>
-figures to plot
-x: time
-y: throughput, latency
-
-TCP: N1 --> N4
-CBR: N5 --> N6
-
-1. CBR bandwidth = 6MB
-1. CBR bandwidth = 8MB
-
-repeat each scenario with TCP Reno and SACK, using queuing algorithms: DropTail and RED
-
-
-<Data Analysis>
-We’ll conduct each experiment scenario for many times, to get the average data. Then we’ll be using Excel to plot the graphs and stats for visualization and verification. Furthermore, we’ll be using T-tests to arrive at and prove our conclusions. This will be a statistical approach to verifying the results.
+Samkeet Shah:
+- Create NS2 TCL script framework
+- Observe results and analyze the findings
+- Compose final report
