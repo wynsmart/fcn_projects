@@ -3,10 +3,6 @@ set tcpType2 [lindex $argv 1]
 set rate [lindex $argv 2]
 set log_file [lindex $argv 3]
 
-set ns [new Simulator]
-$ns color 1 Blue
-$ns color 2 Red
-
 set nf [open $log_file w]
 $ns namtrace-all $nf
 
