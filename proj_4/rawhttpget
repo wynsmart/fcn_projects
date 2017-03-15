@@ -1,0 +1,6 @@
+#!/bin/bash
+
+src=$(pwd)
+export PYTHONPATH=$src
+
+python -O $src"/main.py" "$@"

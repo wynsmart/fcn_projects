@@ -1,12 +1,18 @@
+from __future__ import print_function
 import subprocess
 from urlparse import urlparse
 import os
 import shutil
 
+PASS = '\033[92m'
+FAIL = '\033[91m'
+ENDC = '\033[0m'
+
 # urls used for testing
 urls = [
-    'http://www.ccs.neu.edu',
-    'http://david.choffnes.com/classes/cs4700fa16/project4.php',
+    # 'http://www.ccs.neu.edu',  # 301
+    'http://cs5700sp17.ccs.neu.edu/accounts/login/',
+    # 'http://david.choffnes.com/classes/cs4700fa16/project4.php',
 ]
 for url in urls:
     print(url)
@@ -30,10 +36,11 @@ for url in urls:
         print(e)
 
     # check correctness
-    try:
-        subprocess.check_output(
-            ['diff', 'tmp/_{}'.format(filename), 'tmp/{}'.format(filename)])
-    except Exception as e:
-        exit(e)
+    code = subprocess.call(
+        ['diff', 'tmp/_{}'.format(filename), 'tmp/{}'.format(filename)])
+    if code != 0:
+        exit('{}Test Case Failed{}'.format(FAIL, ENDC))
 
-    print()
+    print('=' * 12)
+
+print('{}All Tests Passed{}'.format(PASS, ENDC))
