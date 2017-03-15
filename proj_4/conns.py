@@ -11,19 +11,18 @@ class MyHTTP:
     '''
 
     def res_complete(self, res):
-        # An </html> tag in response body is considered complete. Or if we got
-        # the Content-Length, we test whether the body is complete by its
-        # length; If we didn't get the Content-Length, assume that the
-        # response is incomplete
-        if '</html>' in res:
-            return True
-
+        '''Check whether a response is complete
+        If response has Content-Length, then check current body length;
+        Else if response is chunked encoded, then check the ending bytes;
+        '''
         match_len = re.search(r'Content-Length: (\d+)', res)
         if match_len:
             content_len = int(match_len.group(1))
             body_offset = res.find('\r\n\r\n') + 4
             if body_offset >= 4 and body_offset + content_len <= len(res):
                 return True
+        elif 'Transfer-Encoding: chunked' in res and '0\r\n\r\n' in res:
+            return True
 
         return False
 
@@ -105,6 +104,4 @@ class MyHTTP:
         '''decode chunked http response
         reference -> https://en.wikipedia.org/wiki/Chunked_transfer_encoding
         '''
-        body = '\r\n' + body[:-2]
-        body = re.sub(r'\r\n[0-9a-f]+\s*\r\n', '', body)
-        return body
+        return re.sub(r'\r\n[0-9a-f]+\s*\r\n', '', '\r\n' + body[:-2])

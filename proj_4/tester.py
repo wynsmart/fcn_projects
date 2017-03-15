@@ -11,36 +11,44 @@ ENDC = '\033[0m'
 # urls used for testing
 urls = [
     # 'http://www.ccs.neu.edu',  # 301
-    'http://cs5700sp17.ccs.neu.edu/accounts/login/',
-    # 'http://david.choffnes.com/classes/cs4700fa16/project4.php',
+    # 'http://cs5700sp17.ccs.neu.edu/accounts/login/',
+    'http://david.choffnes.com/classes/cs4700fa16/project4.php',
 ]
-for url in urls:
-    print(url)
-    filename = urlparse(url).path.split('/')[-1] or 'index.html'
 
-    # clear out the tmp directory
-    shutil.rmtree('tmp', ignore_errors=True)
-    os.makedirs('tmp')
 
-    # download with curl
-    try:
-        subprocess.check_call(
-            ['curl {} > tmp/_{}'.format(url, filename)], shell=True)
-    except Exception as e:
-        print(e)
+def main():
+    for url in urls:
+        print(url)
+        filename = urlparse(url).path.split('/')[-1] or 'index.html'
 
-    # download with rawhttpget
-    try:
-        subprocess.check_call(['./rawhttpget', url])
-    except Exception as e:
-        print(e)
+        # clear out the tmp directory
+        shutil.rmtree('tmp', ignore_errors=True)
+        os.makedirs('tmp')
 
-    # check correctness
-    code = subprocess.call(
-        ['diff', 'tmp/_{}'.format(filename), 'tmp/{}'.format(filename)])
-    if code != 0:
-        exit('{}Test Case Failed{}'.format(FAIL, ENDC))
+        # download with curl
+        try:
+            subprocess.check_call(
+                ['curl {} > tmp/_{}'.format(url, filename)], shell=True)
+        except Exception as e:
+            print(e)
 
-    print('=' * 12)
+        # download with rawhttpget
+        try:
+            subprocess.check_call(['./rawhttpget', url])
+        except Exception as e:
+            print(e)
 
-print('{}All Tests Passed{}'.format(PASS, ENDC))
+        # check correctness
+        code = subprocess.call(
+            ['diff', 'tmp/_{}'.format(filename), 'tmp/{}'.format(filename)])
+        if code != 0:
+            exit('{}Test Case Failed{}'.format(FAIL, ENDC))
+
+        print('=' * 12)
+
+    print('{}All Tests Passed{}'.format(PASS, ENDC))
+
+
+if __name__ == '__main__':
+    while 1:
+        main()
