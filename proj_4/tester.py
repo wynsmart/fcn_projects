@@ -14,6 +14,9 @@ urls = [
     # 'http://www.ccs.neu.edu',  # 301
     # 'http://cs5700sp17.ccs.neu.edu/accounts/login/',
     'http://david.choffnes.com/classes/cs4700fa16/project4.php',
+    'http://david.choffnes.com/classes/cs4700sp17/2MB.log',
+    'http://david.choffnes.com/classes/cs4700sp17/10MB.log',
+    'http://david.choffnes.com/classes/cs4700sp17/50MB.log',
 ]
 
 
@@ -25,14 +28,14 @@ def test_url(url):
         subprocess.check_call(['./rawhttpget', url])
         os.renames(filename, 'tmp/{}'.format(filename))
     except Exception as e:
-        print(e)
+        exit(e)
 
     # download with curl
     try:
         subprocess.check_call(
             ['curl {} > tmp/_{}'.format(url, filename)], shell=True)
     except Exception as e:
-        print(e)
+        exit(e)
 
     # check correctness
     code = subprocess.call(
