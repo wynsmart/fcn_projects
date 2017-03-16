@@ -3,4 +3,5 @@
 src=$(pwd)
 export PYTHONPATH=$src
 
-python -O $src"/main.py" "$@"
+sudo iptables -A OUTPUT -p tcp --tcp-flags RST RST -j DROP
+sudo python -O $src"/main.py" "$@"
