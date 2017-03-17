@@ -1,6 +1,7 @@
 from __future__ import print_function
 import re
 from urlparse import urlparse
+import socket
 
 from utils import log
 from mytcp import MyTCP
@@ -9,6 +10,10 @@ from mytcp import MyTCP
 class MyHTTP:
     '''Customized HTTP on application layer
     '''
+
+    def __init__(self):
+        self.tcp = socket.socket
+        # self.tcp = MyTCP
 
     def get(self, url):
         '''HTTP GET method, main public API
@@ -48,23 +53,22 @@ class MyHTTP:
             exit('Cannot get URL, invalid port number')
 
         # create socket and connect
-        tcp = MyTCP()
+        tcp = self.tcp()
         tcp.connect((host, port))
 
         # send request
-        # tcp.sendall(req.encode())  # reserved for python3
         tcp.sendall(req)
 
         # get response
         res = ''
         data = True
+        buff_size = 256
         while not self.res_complete(res) and data:
-            data = tcp.recv()
+            data = tcp.recv(buff_size)
             res += data
         # log('received:', len(res))
         tcp.close()
 
-        # res = res.decode('utf8')  # reserved for python3
         return self.parse_res(res)
 
     def res_complete(self, res):
