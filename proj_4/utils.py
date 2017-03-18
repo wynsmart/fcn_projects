@@ -1,4 +1,5 @@
 from __future__ import print_function
+from struct import pack, unpack
 import argparse
 
 args = {}
@@ -24,3 +25,17 @@ def log(*arguments):
     ENDC = '\033[0m'
     if args.debug:
         print('{}[dbg]{}'.format(WARNING, ENDC), *arguments)
+
+
+def calc_checksum(msg):
+    if len(msg) & 1:
+        msg += pack('!B', 0)
+
+    checksum = 0
+    for i in xrange(1, len(msg), 2):
+        checksum += unpack('!H', msg[i - 1:i + 1])[0]
+
+    checksum = (checksum >> 16) + (checksum & 0xFFFF)
+    checksum += checksum >> 16
+    checksum = ~checksum & 0xFFFF
+    return checksum

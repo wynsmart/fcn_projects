@@ -29,6 +29,7 @@ email: shah.sam@husky.neu.edu
 <CHALLENGES>
 1. Handle chunked http response
 2. TCP checksum algorithm
+3. send/recv socket (addr_family, type, protocol)
 
 
 <TESTING>

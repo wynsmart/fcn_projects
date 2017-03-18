@@ -2,14 +2,29 @@ from __future__ import print_function
 from struct import pack, unpack
 import socket
 
+from utils import calc_checksum
+
 
 class MyIP:
     '''Customized IP on network layer
     '''
 
     def build_packet(self, src, dst, body):
-        '''Assemble IP header fields appending body, reference at
-        https://en.wikipedia.org/wiki/IPv4
+        '''Assemble IP header fields appending body
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |Version|  IHL  |Type of Service|          Total Length         |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |         Identification        |Flags|      Fragment Offset    |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |  Time to Live |    Protocol   |         Header Checksum       |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                       Source Address                          |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                    Destination Address                        |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                    Options                    |    Padding    |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        [REFERENCE] https://en.wikipedia.org/wiki/IPv4
         '''
         version = 4
         ihl = 5
@@ -40,3 +55,7 @@ class MyIP:
 
         packet = header + body
         return packet
+
+    def _calc_checksum(self, header):
+        msg = header[:10] + pack('!H', 0) + header[12:]
+        return calc_checksum(msg)
