@@ -13,7 +13,7 @@ class MyHTTP:
 
     def __init__(self):
         self.tcp = socket.socket
-        # self.tcp = MyTCP
+        self.tcp = MyTCP
 
     def get(self, url):
         '''HTTP GET method, main public API
@@ -62,7 +62,7 @@ class MyHTTP:
         # get response
         res = ''
         data = True
-        buff_size = 256
+        buff_size = 4096
         while not self.res_complete(res) and data:
             data = tcp.recv(buff_size)
             res += data

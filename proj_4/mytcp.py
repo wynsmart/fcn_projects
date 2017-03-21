@@ -2,10 +2,9 @@ from __future__ import print_function
 from struct import pack, unpack
 import socket
 import random
-import time
 
 from myip import MyIP
-from utils import calc_checksum
+from utils import calc_checksum, log
 
 
 class MyTCP:
@@ -18,9 +17,11 @@ class MyTCP:
         self.ip = MyIP()
 
         self.src_host = self._get_self_ip()
-        self.src_port = self._nextAvailablePort()
+        self.src_port = self._next_available_port()
+        log('Local:', self.src_host, self.src_port)
         self.dst_host = None
         self.dst_port = None
+        self.connected = False
 
         self.send_sock = socket.socket(
             socket.AF_INET,
@@ -30,43 +31,76 @@ class MyTCP:
             socket.PF_PACKET,
             socket.SOCK_RAW,
             socket.htons(3), )
+        # self.recv_sock = socket.socket(
+        #     socket.AF_INET,
+        #     socket.SOCK_RAW,
+        #     socket.IPPROTO_TCP, )
 
         self.seq_num = random.randrange(1 << 32)
         self.ack_num = 0
-        self.last_sent_size = 0
 
     def connect(self, netloc):
         dst_host, self.dst_port = netloc
         self.dst_host = socket.gethostbyname(dst_host)
         self.send_sock.connect((self.dst_host, self.dst_port))
         # TCP handshake
-        self._send(MyTCP.SYN, '')
-        self._recv(MyTCP.SYN | MyTCP.ACK, 256)
-        self._send(MyTCP.ACK, '')
-
-    def sendall(self, data):
-        self._send(MyTCP.PSH, data)
-
-    def _recv(self, flags, buff_size):
-        data = None
-        while data is None:
-            recv_packet = self.recv_sock.recv(buff_size)
-            data = self._verify_packet_and_get_data(recv_packet, flags)
-
-        return data
+        log('connecting...')
+        log('sending: syn')
+        self._send('', flags=MyTCP.SYN)
+        self.seq_num += 1
+        log('waiting: syn, ack')
+        self._recv(256, flags=MyTCP.SYN | MyTCP.ACK)
+        self.ack_num += 1
+        log('sending: ack')
+        self._send('', flags=MyTCP.ACK)
+        log('connected')
+        self.connected = True
+        log('status', self.seq_num, self.ack_num)
 
     def close(self):
-        self.send_sock.close()
+        log('disconnecting')
+        log('sending: fin')
+        self._send('', flags=MyTCP.FIN)
+        self.seq_num += 1
+        log('waiting: ack')
+        self._recv(256, flags=MyTCP.ACK)
+        log('waiting: fin')
+        self._recv(256, flags=MyTCP.FIN)
+        self.ack_num += 1
+        log('sending: ack')
+        self._send('', flags=MyTCP.ACK)
+        log('disconnected')
 
-    def _send(self, flags, data):
+    def sendall(self, data):
+        log('sending:', data)
+        self._send(data, MyTCP.PSH)
+        self.seq_num += len(data)
+        self._recv(256, flags=MyTCP.ACK)
+        log('sent:', data)
+
+    def recv(self, buff_size):
+        data = self._recv(buff_size)
+        self.ack_num += len(data)
+        self._send('', MyTCP.ACK)
+        return data
+
+    def _send(self, data, flags=0):
+        if self.connected:
+            flags |= MyTCP.ACK
+
         tcp_packet = self._build_packet(flags, data)
         ip_packet = self.ip.build_packet(self.src_host, self.dst_host,
                                          tcp_packet)
+
         self.send_sock.sendall(ip_packet)
-        if flags & MyTCP.ACK:
-            self.last_sent_size = 0
-        else:
-            self.last_sent_size = len(data) or 1
+
+    def _recv(self, buff_size, flags=0):
+        log('looking for:', self.seq_num, self.ack_num)
+        data = None
+        while data is None:
+            recv_packet = self.recv_sock.recv(buff_size)
+            data = self._filter_packets(recv_packet, flags)
+        return data
 
     def _build_packet(self, flags, body):
         '''Assemble TCP header fields appending body
@@ -91,7 +125,7 @@ class MyTCP:
         '''
         data_offset = 5
         ns = 0
-        tcp_window = 1000
+        tcp_window = (1 << 16) - 1
         checksum = 0
         urg_ptr = 0
 
@@ -162,22 +196,24 @@ class MyTCP:
     def _get_self_ip(self):
         return '172.16.248.10'
 
-    def _nextAvailablePort(self):
-        return 50249
+    def _next_available_port(self):
+        return random.randint(10000, 1 << 16 - 1)
 
-    def _verify_packet_and_get_data(self, recv_packet, flags):
+    def _filter_packets(self, recv_packet, flags):
         '''verify the following attributes of received packet
         dst_ip, dst_port, src_ip, src_port, protocol, ip_checksum, tcp_checksum
         returns the parsed packet if the verification is passed,
         else return None
         '''
         # Data Link Layer
+        # log('filtering Data Link Layer')
         frame_type = unpack('!H', recv_packet[12:14])[0]
         if frame_type != 0x0800:
             # 0x0800 is the type of IP protocol
             return None
 
         # Network Layer
+        # log('filtering Network Layer')
         ip_packet = recv_packet[14:]
         ip_h_lengh = (unpack('!B', ip_packet[0])[0] & 0x0F) * 4
         ip_p_lengh = unpack('!H', ip_packet[2:4])[0]
@@ -196,34 +232,62 @@ class MyTCP:
             return None
 
         # Transport Layer
+        # log('filtering Transport Layer')
         tcp_packet = ip_packet[ip_h_lengh:]
         tcp_h_length = (unpack('!B', tcp_packet[12])[0] >> 4) * 4
         tcp_header = tcp_packet[:tcp_h_length]
-        data = tcp_packet[tcp_h_length:]
 
         src_port, dst_port = unpack('!HH', tcp_header[:4])
-        seq_num, ack_num = unpack('!LL', tcp_header[4:12])
         tcp_checksum = unpack('!H', tcp_header[16:18])[0]
-        tcp_flags = unpack('!B', tcp_header[13])[0]
 
-        if (src_port, dst_port, tcp_flags, ack_num, tcp_checksum) != (
+        if (src_port, dst_port, ) != (
                 self.dst_port,
                 self.src_port,
-                flags,
-                self.seq_num + self.last_sent_size,
-                self._calc_checksum(tcp_packet, self.dst_host, self.src_host),
+                # self._calc_checksum(tcp_packet, self.dst_host, self.src_host),
         ):
             return None
 
+        # check sequence #
+        # log('filtering ack #')
+        seq_num, ack_num = unpack('!LL', tcp_header[4:12])
+        ack_match = self.seq_num == ack_num
+        if not self.connected:
+            self.ack_num = seq_num
+        seq_match = self.ack_num == seq_num
+        if not (seq_match and ack_match):
+            return None
+
+        # Check flags
+        # log('filtering flags')
+        tcp_flags = unpack('!B', tcp_header[13])[0]
+        flags_match = (tcp_flags & flags) == flags
+        if not flags_match:
+            return None
+
         # Verification passed, accept data
-        if tcp_flags & MyTCP.ACK:
-            self.seq_num += self.last_sent_size
-        self.ack_num = seq_num + len(data)
+        data = tcp_packet[tcp_h_length:]
+        log('accepted', self.seq_num, self.ack_num, len(data))
         return data
+
+
+# TODO: remove this after testing
+def log(*arguments):
+    '''Logger in debugging mode
+    if option '-d' or '--debug' is given
+    import debugging outputs will be printed
+    '''
+    WARNING = '\033[93m'
+    ENDC = '\033[0m'
+    if 1:
+        print('{}[dbg]{}'.format(WARNING, ENDC), *arguments)
 
 
 if __name__ == '__main__':
     mytcp = MyTCP()
     mytcp.connect(('david.choffnes.com', 80))
-    time.sleep(2)
-    mytcp.sendall('GET /classes/cs4700fa16/project4.php HTTP/1.1\r\nHost: david.choffnes.com\r\n')
+    req = 'GET /classes/cs4700fa16/project4.php HTTP/1.1\n'\
+        + 'Host: david.choffnes.com\n\n'
+    mytcp.sendall(req)
+    while 1:
+        print(mytcp.recv(4096))
+    mytcp.close()

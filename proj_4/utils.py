@@ -2,7 +2,7 @@ from __future__ import print_function
 from struct import pack, unpack
 import argparse
 
-args = {}
+args = None
 
 
 def load_args():

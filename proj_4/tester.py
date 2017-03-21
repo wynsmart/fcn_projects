@@ -13,7 +13,7 @@ ENDC = '\033[0m'
 urls = [
     # 'http://www.ccs.neu.edu',  # 301
     'http://david.choffnes.com/classes/cs4700fa16/project4.php',
-    # 'http://david.choffnes.com/classes/cs4700sp17/2MB.log',
+    'http://david.choffnes.com/classes/cs4700sp17/2MB.log',
     # 'http://david.choffnes.com/classes/cs4700sp17/10MB.log',
     # 'http://david.choffnes.com/classes/cs4700sp17/50MB.log',
 ]
@@ -60,5 +60,6 @@ def main():
 if __name__ == '__main__':
     while 1:
         main()
-        print('\nre-run tests in 2 seconds...\n')
-        time.sleep(2)
+        timeout = 5
+        print('\nre-run tests in {} seconds...\n'.format(timeout))
+        time.sleep(timeout)
