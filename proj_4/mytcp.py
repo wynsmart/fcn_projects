@@ -16,7 +16,8 @@ class MyTCP:
     def __init__(self):
         self.ip = MyIP()
 
-        self.src_port = None
+        self.src_port = self._get_src_port()
+        log('Local:', self.ip.src_ip, self.src_port)
         self.dst_port = None
         self.connected = False
 
@@ -24,9 +25,8 @@ class MyTCP:
         self.ack_num = 0
 
     def connect(self, netloc):
-        self.dst_port = netloc[1]
-        self.src_port = self.ip.connect(netloc)
-        log('Local:', self.ip.src_ip, self.src_port)
+        dst_host, self.dst_port = netloc
+        self.ip.connect(dst_host)
         # TCP handshake
         log('connecting...')
         log('sending: syn')
@@ -74,7 +74,7 @@ class MyTCP:
             flags |= MyTCP.ACK
 
         tcp_packet = self._build_packet(data, flags)
-        self.ip.send(tcp_packet)
+        self.ip.sendto(tcp_packet, self.dst_port)
 
     def _recv(self, bufsize, flags=0):
         log('looking-for:', self.seq_num, self.ack_num)
@@ -174,6 +174,10 @@ class MyTCP:
 
         msg = pseudo_header + packet[:16] + pack('!H', 0) + packet[18:]
         return calc_checksum(msg)
+
+    def _get_src_port(self):
+        # TODO: ensure a valid port
+        return random.randint(10000, 1 << 16 - 1)
 
     def _filter_packets(self, tcp_packet, flags):
         '''verify the following attributes of received packet

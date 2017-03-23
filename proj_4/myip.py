@@ -10,7 +10,7 @@ class MyIP:
     '''
 
     def __init__(self):
-        self.src_ip = None
+        self.src_ip = self._get_src_ip()
         self.dst_ip = None
 
         self.send_sock = socket.socket(
@@ -26,22 +26,20 @@ class MyIP:
         #     socket.SOCK_RAW,
         #     socket.IPPROTO_TCP, )
 
-    def connect(self, netloc):
-        self.send_sock.connect(netloc)
-        self.src_ip, src_port = self.send_sock.getsockname()
-        self.dst_ip, dst_port = self.send_sock.getpeername()
-        return src_port
+    def connect(self, dst_host):
+        self.dst_ip = socket.gethostbyname(dst_host)
 
-    def send(self, data):
+    def sendto(self, data, dst_port):
         ip_packet = self._build_packet(data)
         bytes_sent = 0
         while bytes_sent < len(ip_packet):
-            bytes_sent += self.send_sock.send(ip_packet[bytes_sent:])
+            bytes_sent += self.send_sock.sendto(ip_packet[bytes_sent:],
+                                                (self.dst_ip, dst_port))
 
     def recv(self, bufsize):
         data = None
         while data is None:
-            recv_packet = self.recv_sock.recv(bufsize)
+            recv_packet, addr = self.recv_sock.recvfrom(bufsize)
             data = self._filter_packets(recv_packet)
         return data
 
@@ -91,6 +89,9 @@ class MyIP:
 
         packet = header + body
         return packet
+
+    def _get_src_ip(self):
+        return '172.16.248.10'
 
     def _calc_checksum(self, header):
         msg = header[:10] + pack('!H', 0) + header[12:]
