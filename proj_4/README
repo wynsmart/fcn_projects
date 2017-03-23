@@ -30,7 +30,7 @@ email: shah.sam@husky.neu.edu
 1. Handle chunked http response
 2. TCP checksum algorithm
 3. send/recv socket (addr_family, type, protocol)
-4. problem when buffer_size of socket.recv() is smaller than data size, checksum no longer 
+4. problem when buffer_size of socket.recv() is smaller than data size, checksum fails
 
 
 <TESTING>

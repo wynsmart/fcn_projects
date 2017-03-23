@@ -62,9 +62,9 @@ class MyHTTP:
         # get response
         res = ''
         data = True
-        buff_size = 4096
+        bufsize = 4096
         while not self.res_complete(res) and data:
-            data = tcp.recv(buff_size)
+            data = tcp.recv(bufsize)
             res += data
         # log('received:', len(res))
         tcp.close()
