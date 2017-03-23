@@ -91,6 +91,7 @@ class MyIP:
         return packet
 
     def _get_src_ip(self):
+        # TODO: find out local ip
         return '172.16.248.10'
 
     def _calc_checksum(self, header):

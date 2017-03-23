@@ -29,13 +29,13 @@ class MyTCP:
         self.ip.connect(dst_host)
         # TCP handshake
         log('connecting...')
-        log('sending: syn')
+        log('sending: SYN')
         self._send('', flags=MyTCP.SYN)
         self.seq_num += 1
-        log('waiting: syn, ack')
+        log('waiting: SYN, ACK')
         self._recv(256, flags=MyTCP.SYN | MyTCP.ACK)
         self.ack_num += 1
-        log('sending: ack')
+        log('sending: ACK')
         self._send('', flags=MyTCP.ACK)
         log('connected')
         self.connected = True
@@ -43,15 +43,15 @@ class MyTCP:
 
     def close(self):
         log('disconnecting')
-        log('sending: fin')
+        log('sending: FIN')
         self._send('', flags=MyTCP.FIN)
         self.seq_num += 1
-        log('waiting: ack')
+        log('waiting: ACK')
         self._recv(256, flags=MyTCP.ACK)
-        log('waiting: fin')
+        log('waiting: FIN')
         self._recv(256, flags=MyTCP.FIN)
         self.ack_num += 1
-        log('sending: ack')
+        log('sending: ACK')
         self._send('', flags=MyTCP.ACK)
         log('disconnected')
         self.connected = False
@@ -72,12 +72,11 @@ class MyTCP:
     def _send(self, data, flags=0):
         if self.connected:
             flags |= MyTCP.ACK
-
         tcp_packet = self._build_packet(data, flags)
         self.ip.sendto(tcp_packet, self.dst_port)
 
     def _recv(self, bufsize, flags=0):
-        log('looking-for:', self.seq_num, self.ack_num)
+        log('looking-for:', self.ack_num)
         data = None
         while data is None:
             tcp_packet = self.ip.recv(bufsize)
