@@ -4,7 +4,7 @@ import socket
 import random
 
 from myip import MyIP
-from utils import calc_checksum, log
+from utils import Timer, calc_checksum, log
 
 
 class MyTCP:
@@ -17,23 +17,32 @@ class MyTCP:
         self.ip = MyIP()
 
         self.src_port = self._get_src_port()
-        log('Local:', self.ip.src_ip, self.src_port)
+        log('local:', self.ip.src_ip, self.src_port)
         self.dst_port = None
         self.connected = False
 
         self.seq_num = random.randrange(1 << 32)
         self.ack_num = 0
 
-    def connect(self, netloc):
+        self.cwnd = 1
+        self.adv_wnd = None
+        self.ssthresh = None
+
+    def connect(self, netloc, retry=3):
+        if not retry:
+            exit('cannot connect to the host')
         dst_host, self.dst_port = netloc
         self.ip.connect(dst_host)
         # TCP handshake
-        log('connecting...')
+        log('connecting:', self.ip.dst_ip, self.dst_port)
         log('sending: SYN')
         self._send('', flags=MyTCP.SYN)
         self.seq_num += 1
         log('waiting: SYN, ACK')
-        self._recv(256, flags=MyTCP.SYN | MyTCP.ACK)
+        if self._recv(flags=MyTCP.SYN | MyTCP.ACK) is None:
+            log('connection failed, retrying...')
+            self.connect(netloc, retry=retry - 1)
+            return
         self.ack_num += 1
         log('sending: ACK')
         self._send('', flags=MyTCP.ACK)
@@ -47,25 +56,54 @@ class MyTCP:
         self._send('', flags=MyTCP.FIN)
         self.seq_num += 1
         log('waiting: ACK')
-        self._recv(256, flags=MyTCP.ACK)
+        self._recv(flags=MyTCP.ACK)
         log('waiting: FIN')
-        self._recv(256, flags=MyTCP.FIN)
+        self._recv(flags=MyTCP.FIN)
         self.ack_num += 1
         log('sending: ACK')
         self._send('', flags=MyTCP.ACK)
         log('disconnected')
         self.connected = False
 
-    def sendall(self, data):
+    def sendall(self, data, retry=3):
+        # TODO: handle 400 bad request
+        if not len(data):
+            return
+        if not retry:
+            exit('remote is not responding')
         log('sending:', data)
-        self._send(data, MyTCP.PSH)
-        self.seq_num += len(data)
-        self._recv(256, flags=MyTCP.ACK)
-        log('sent:', data)
+        init_seq = self.seq_num
+        wnd = int(min(self.cwnd, self.adv_wnd))
+        flags = MyTCP.PSH if wnd >= len(data) else 0
+        bytes_sent = self._send(data[:wnd], flags)
+        timer = Timer(60)
+        while not timer.timeout():
+            if self._recv(flags=MyTCP.ACK, timeout=0.001) is not None:
+                self.seq_num += bytes_sent
+                # ACK received, increase cwnd
+                if self.cwnd < self.ssthresh:
+                    self.cwnd += 1
+                else:
+                    self.cwnd += 1.0 / self.cwnd
+            if self.seq_num == (init_seq + bytes_sent):
+                # all data has been sent
+                break
+        else:
+            # socket timeout, congestion detected
+            self.ssthresh /= 2.0
+            self.cwnd = 1
 
-    def recv(self, bufsize):
-        data = self._recv(bufsize)
-        self.ack_num += len(data)
+        if self.seq_num == init_seq:
+            self.sendall(data, retry=retry - 1)
+        else:
+            log('sent:', data[:self.seq_num - init_seq])
+            self.sendall(data[self.seq_num - init_seq:])
+
+    def recv(self, bufsize=4096):
+        log('waiting contents...')
+        data = self._recv(bufsize, timeout=3 * 60)
+        if data is None:
+            exit('remote server stopped responding')
         self._send('', MyTCP.ACK)
         return data
 
@@ -74,13 +112,19 @@ class MyTCP:
             flags |= MyTCP.ACK
         tcp_packet = self._build_packet(data, flags)
         self.ip.sendto(tcp_packet, self.dst_port)
+        return len(data)
 
-    def _recv(self, bufsize, flags=0):
+    def _recv(self, bufsize=4096, flags=0, timeout=60):
         log('looking-for:', self.ack_num)
+        # TODO: increase timer to 60
+        timer = Timer(timeout)
         data = None
-        while data is None:
-            tcp_packet = self.ip.recv(bufsize)
-            data = self._filter_packets(tcp_packet, flags)
+        while data is None and not timer.timeout():
+            try:
+                tcp_packet = self.ip.recv(bufsize)
+                data = self._filter_packets(tcp_packet, flags)
+            except:
+                pass
         return data
 
     def _build_packet(self, body, flags):
@@ -176,7 +220,7 @@ class MyTCP:
 
     def _get_src_port(self):
         # TODO: ensure a valid port
-        return random.randint(10000, 1 << 16 - 1)
+        return random.randint(40000, (1 << 16) - 1)
 
     def _filter_packets(self, tcp_packet, flags):
         '''verify the following attributes of received packet
@@ -219,27 +263,8 @@ class MyTCP:
         # Verification passed, accept data
         data = tcp_packet[tcp_h_length:]
         log('accepted', self.seq_num, self.ack_num, len(data))
+        self.adv_wnd = unpack('!H', tcp_header[14:16])[0]
+        if not self.connected:
+            self.ssthresh = self.adv_wnd
+        self.ack_num = seq_num + len(data)
         return data
-
-
-# TODO: remove this after testing
-def log(*arguments):
-    '''Logger in debugging mode
-    if option '-d' or '--debug' is given
-    import debugging outputs will be printed
-    '''
-    WARNING = '\033[93m'
-    ENDC = '\033[0m'
-    if 1:
-        print('{}[dbg]{}'.format(WARNING, ENDC), *arguments)
-
-
-if __name__ == '__main__':
-    mytcp = MyTCP()
-    mytcp.connect(('david.choffnes.com', 80))
-    req = 'GET /classes/cs4700fa16/project4.php HTTP/1.1\n'\
-        + 'Host: david.choffnes.com\n\n'
-    mytcp.sendall(req)
-    while 1:
-        print(mytcp.recv(4096))
-    mytcp.close()

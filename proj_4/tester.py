@@ -14,8 +14,8 @@ urls = [
     # 'http://www.ccs.neu.edu',  # 301
     'http://david.choffnes.com/classes/cs4700fa16/project4.php',
     'http://david.choffnes.com/classes/cs4700sp17/2MB.log',
-    # 'http://david.choffnes.com/classes/cs4700sp17/10MB.log',
-    # 'http://david.choffnes.com/classes/cs4700sp17/50MB.log',
+    'http://david.choffnes.com/classes/cs4700sp17/10MB.log',
+    'http://david.choffnes.com/classes/cs4700sp17/50MB.log',
 ]
 
 
@@ -23,18 +23,20 @@ def test_url(url):
     filename = urlparse(url).path.split('/')[-1] or 'index.html'
 
     # download with rawhttpget
+    print('>> downloading with rawhttpget')
     try:
         subprocess.check_call(['./rawhttpget', url])
         os.renames(filename, 'tmp/{}'.format(filename))
     except Exception as e:
-        exit(e)
+        exit('{}{}{}'.format(FAIL, e, ENDC))
 
     # download with curl
+    print('>> downloading with curl')
     try:
         subprocess.check_call(
             ['curl {} > tmp/_{}'.format(url, filename)], shell=True)
     except Exception as e:
-        exit(e)
+        exit('{}{}{}'.format(FAIL, e, ENDC))
 
     # check correctness
     code = subprocess.call(
@@ -42,7 +44,8 @@ def test_url(url):
     if code != 0:
         exit('{}Test Case Failed{}'.format(FAIL, ENDC))
 
-    print('=' * 12)
+    print('{}[PASSED]{}'.format(PASS, ENDC))
+    print('=' * 80)
 
 
 def main():
@@ -54,7 +57,7 @@ def main():
         print(url)
         test_url(url)
 
-    print('{}All Tests Passed{}'.format(PASS, ENDC))
+    print('{}[ALL TESTS PASSED]{}'.format(PASS, ENDC))
 
 
 if __name__ == '__main__':

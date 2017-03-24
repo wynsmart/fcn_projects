@@ -1,8 +1,21 @@
 from __future__ import print_function
 from struct import pack, unpack
 import argparse
+import time
 
 args = None
+
+
+class Timer:
+    def __init__(self, duration):
+        self.duration = duration
+        self.st_time = self.now()
+
+    def timeout(self):
+        return (self.now() - self.st_time) >= self.duration
+
+    def now(self):
+        return time.time()
 
 
 def load_args():

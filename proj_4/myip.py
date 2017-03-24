@@ -1,6 +1,7 @@
 from __future__ import print_function
 from struct import pack, unpack
 import socket
+import fcntl
 
 from utils import calc_checksum
 
@@ -21,6 +22,7 @@ class MyIP:
             socket.PF_PACKET,
             socket.SOCK_RAW,
             socket.htons(3), )
+        self.recv_sock.setblocking(0)
         # self.recv_sock = socket.socket(
         #     socket.AF_INET,
         #     socket.SOCK_RAW,
@@ -36,7 +38,7 @@ class MyIP:
             bytes_sent += self.send_sock.sendto(ip_packet[bytes_sent:],
                                                 (self.dst_ip, dst_port))
 
-    def recv(self, bufsize):
+    def recv(self, bufsize=4096):
         data = None
         while data is None:
             recv_packet, addr = self.recv_sock.recvfrom(bufsize)
@@ -91,8 +93,14 @@ class MyIP:
         return packet
 
     def _get_src_ip(self):
-        # TODO: find out local ip
-        return '172.16.248.10'
+        ifname = 'eth0'
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        src_ip = socket.inet_ntoa(
+            fcntl.ioctl(
+                s.fileno(),
+                0x8915,  # SIOCGIFADDR
+                pack('256s', ifname[:15]))[20:24])
+        return src_ip
 
     def _calc_checksum(self, header):
         msg = header[:10] + pack('!H', 0) + header[12:]
