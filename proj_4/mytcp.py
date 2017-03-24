@@ -262,7 +262,7 @@ class MyTCP:
 
         # Verification passed, accept data
         data = tcp_packet[tcp_h_length:]
-        log('accepted', self.seq_num, self.ack_num, len(data))
+        log('accepted {} ({} bytes)'.format(seq_num, len(data)))
         self.adv_wnd = unpack('!H', tcp_header[14:16])[0]
         if not self.connected:
             self.ssthresh = self.adv_wnd
