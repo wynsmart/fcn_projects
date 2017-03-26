@@ -4,6 +4,7 @@ import argparse
 import time
 
 args = None
+IFNAME = 'eth0'
 
 
 class Timer:
@@ -52,3 +53,10 @@ def calc_checksum(msg):
     checksum += checksum >> 16
     checksum = ~checksum & 0xFFFF
     return checksum
+
+
+def hexprint(msg):
+    for i in xrange(0, len(msg), 16):
+        part_1 = ' '.join('{:02x}'.format(ord(x)) for x in msg[i:i + 8])
+        part_2 = ' '.join('{:02x}'.format(ord(x)) for x in msg[i + 8:i + 16])
+        print('{}   {}'.format(part_1, part_2))

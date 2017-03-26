@@ -3,8 +3,8 @@ from struct import pack, unpack
 import socket
 import random
 
-from myip import MyIP
 from utils import Timer, calc_checksum, log
+from myip import MyIP
 
 
 class MyTCP:
@@ -14,10 +14,9 @@ class MyTCP:
     FIN, SYN, RST, PSH, ACK, URG, ECE, CWR = [1 << i for i in xrange(8)]
 
     def __init__(self):
-        self.ip = MyIP()
+        self.ip = None
 
         self.src_port = self._get_src_port()
-        log('local:', self.ip.src_ip, self.src_port)
         self.dst_port = None
         self.connected = False
 
@@ -32,7 +31,9 @@ class MyTCP:
         if not retry:
             exit('cannot connect to the host')
         dst_host, self.dst_port = netloc
-        self.ip.connect(dst_host)
+        dst_ip = socket.gethostbyname(dst_host)
+        self.ip = MyIP(dst_ip)
+        log('local:', self.ip.src_ip, self.src_port)
         # TCP handshake
         log('connecting:', self.ip.dst_ip, self.dst_port)
         log('sending: SYN')
@@ -73,7 +74,7 @@ class MyTCP:
             exit('remote is not responding')
         log('sending:', data)
         init_seq = self.seq_num
-        wnd = int(min(self.cwnd, self.adv_wnd))
+        wnd = int(min(self.cwnd, self.adv_wnd, 1000))
         flags = MyTCP.PSH if wnd >= len(data) else 0
         bytes_sent = self._send(data[:wnd], flags)
         timer = Timer(60)
@@ -111,20 +112,16 @@ class MyTCP:
         if self.connected:
             flags |= MyTCP.ACK
         tcp_packet = self._build_packet(data, flags)
-        self.ip.sendto(tcp_packet, self.dst_port)
+        self.ip.send(tcp_packet)
         return len(data)
 
     def _recv(self, bufsize=4096, flags=0, timeout=60):
         log('looking-for:', self.ack_num)
-        # TODO: increase timer to 60
         timer = Timer(timeout)
         data = None
         while data is None and not timer.timeout():
-            try:
-                tcp_packet = self.ip.recv(bufsize)
-                data = self._filter_packets(tcp_packet, flags)
-            except:
-                pass
+            tcp_packet = self.ip.recv(bufsize)
+            data = self._filter_packets(tcp_packet, flags)
         return data
 
     def _build_packet(self, body, flags):
@@ -228,6 +225,8 @@ class MyTCP:
         returns the parsed packet if the verification is passed,
         else return None
         '''
+        if tcp_packet is None:
+            return None
         # Transport Layer
         # log('filtering Transport Layer')
         tcp_h_length = (unpack('!B', tcp_packet[12])[0] >> 4) * 4

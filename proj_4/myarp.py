@@ -1,36 +1,40 @@
 from __future__ import print_function
+from struct import pack, unpack
+from uuid import getnode
 import socket
-import struct
 import sys
 import binascii
-from uuid import getnode
+
+from utils import IFNAME, hexprint, Timer
+from myethernet import MyEthernet
+
+ARP_FRAME = '\x08\x06'
+
 
 class MyARP:
+    def __init__(self, src_ip):
+        dst_mac = '\xFF' * 6
+        self.ethernet = MyEthernet(dst_mac)
+        self.src_ip = src_ip
 
-    def __init__(self):
-        self.src_ip = self._get_src_ip()
-        self.src_hwaddr = getnode()
-        # Call API to get DST IP
-        self.dst_hwaddr = None
-        self.send_sock = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x0806))
-        self.send_sock.bind(('eth0', 0))
-        self.recv_sock = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x0806))
+    def lookup(self, ip_addr, retry=3):
+        # TODO: fix failure on continuous lookups
+        if not retry:
+            exit('ARP failed, please retry later')
+        arp_packet = self._build_packet(ip_addr)
+        self.ethernet.send(arp_packet, frame_type=ARP_FRAME)
+        timer = Timer(10)
+        mac_addr = None
+        while mac_addr is None and not timer.timeout():
+            data = self.ethernet.recv(4096, frame_type=ARP_FRAME)
+            mac_addr = self._filter_packets(data)
 
-    def arp_request(self, ip_addr):
-        self._send(ip_addr)
-        mac_addr = self._recv(ip_addr)
+        if mac_addr is None:
+            return self.lookup(ip_addr, retry = retry - 1)
+
         return mac_addr
 
     def _build_packet(self, ip_addr):
-        dst_ip = socket.inet_aton(ip_addr)
-        # Ethernet Header
-        # "!6s6s2s"
-        ether_type = '\x08\x06'
-        dst_mac =  '\xFF' * 6
-        src_mac = '{:012x}'.format(self.src_hwaddr)
-        src_mac = ''.join([struct.pack('!B', int(src_mac[i: i+2], base=16)) for i in range(0, 12, 2)])
-        print('dst:', list(dst_mac))
-        print('src:', list(src_mac))
         # ARP Header
         # "!2s2s1s1s2s"
         hware_type = '\x00\x01'
@@ -39,43 +43,40 @@ class MyARP:
         proto_size = '\x04'
         opcode = '\x00\x01'
         src_ip = socket.inet_aton(self.src_ip)
-
-        # ARP Data
-        # "!6s4s"
-        arp_dst_mac = '\x00'*6
+        dst_ip = socket.inet_aton(ip_addr)
+        arp_dst_mac = '\x00' * 6
 
         # Create Packet
-        eth_hdr = struct.pack('!6s6s2s', dst_mac, src_mac, ether_type)
-        print(list(eth_hdr))
-        arp_hdr = struct.pack('!2s2s1s1s2s', hware_type, proto_type, hware_size, proto_size, opcode)
-        arp_data = struct.pack('!6s4s', src_mac, src_ip) + struct.pack('!6s4s', arp_dst_mac, dst_ip)
+        arp_hdr = pack(
+            '!2s2s1s1s2s',
+            hware_type,
+            proto_type,
+            hware_size,
+            proto_size,
+            opcode, )
+        arp_data = pack(
+            '!6s4s6s4s',
+            self.ethernet.src_mac,
+            src_ip,
+            arp_dst_mac,
+            dst_ip, )
 
-        arp_packet = eth_hdr + arp_hdr + arp_data
-        # exit(list(arp_packet))
-        return arp_packet
+        return arp_hdr + arp_data
 
-    def _get_src_ip(self):
-        # TODO: find out local ip
-        return '172.16.248.10'
-
-    def _send(self, ip_addr):
-        self.send_sock.send(self._build_packet(ip_addr))
-
-    def _recv(self, ip_addr):
-        arp_response = self.recv_sock.recv(4096)
-        sender_ip = struct.unpack('!4B', arp_response[0x26:0x2a])
-        local_ip = tuple([int(i) for i in self.src_ip.split('.')])
-        print('zzz', sender_ip, local_ip)
-        if sender_ip == local_ip:
-            self.dst_hwaddr = arp_response[0x16:0x1c]
-            print('jjj', self.send_sock.getsockname())
-        return self.dst_hwaddr
+    def _filter_packets(self, recv_packet):
+        if recv_packet is None:
+            return None
+        receiver_ip = recv_packet[24:28]
+        local_ip = socket.inet_aton(self.src_ip)
+        if receiver_ip != local_ip:
+            return None
+        return recv_packet[8:14]
 
 
 if __name__ == "__main__":
-    arp = MyARP()
+    arp = MyARP('172.16.248.10')
     host = 'david.choffnes.com'
     ip_addr = socket.gethostbyname(host)
     print(ip_addr)
-    mac_addr = arp.arp_request(ip_addr)
-    print('mac:', list(mac_addr))
+    mac_addr = arp.lookup(ip_addr)
+    hexprint(mac_addr)

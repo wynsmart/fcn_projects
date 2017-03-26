@@ -1,20 +1,62 @@
-import struct
-from myarp import MyARP
+from __future__ import print_function
+from struct import pack, unpack
 import socket
 
+from utils import IFNAME, hexprint
+
+IP_FRAME = '\x08\x00'
+
+
 class MyEthernet:
+    def __init__(self, dst_mac):
+        self.send_sock = socket.socket(
+            socket.PF_PACKET,
+            socket.SOCK_RAW,
+            socket.htons(3), )
+        self.recv_sock = socket.socket(
+            socket.PF_PACKET,
+            socket.SOCK_RAW,
+            socket.htons(3), )
 
-	def __init__(self):
-		self.arp = MyARP()
-		self.src_mac = arp.src_hwaddr
-		self.dst_mac = arp.dst_hwaddr
+        self.send_sock.bind((IFNAME, 0))
+        self.recv_sock.setblocking(0)
 
-	def _send(self):
-		sock = socket.socket(AF_PACKET, SOCK_RAW)
-		sock.bind('eth0', 0)
-		sock.send(_build_packet())
+        self.src_mac = self.send_sock.getsockname()[-1]
+        self.dst_mac = dst_mac
+        hexprint(self.src_mac)
+        hexprint(self.dst_mac)
 
-	def _build_packet(self):
-		eth_type = '0x0800'
-		payload = None
-		return self.dst_mac + self.src_mac + eth_type + payload
+    def send(self, data, frame_type=IP_FRAME):
+        eth_packet = self._build_packet(data, frame_type)
+        bytes_sent = 0
+        while bytes_sent < len(eth_packet):
+            bytes_sent += self.send_sock.send(eth_packet[bytes_sent:])
+
+    def recv(self, bufsize, frame_type=IP_FRAME):
+        data = None
+        try:
+            recv_packet = self.recv_sock.recv(bufsize)
+            data = self._filter_packets(recv_packet, frame_type)
+        except:
+            pass
+
+        return data
+
+    def _build_packet(self, body, frame_type):
+        '''Assemble ethernet header fields appending body
+        [REFERENCE] https://en.wikipedia.org/wiki/Ethernet_frame
+        '''
+        # Ethernet Header
+        eth_hdr = pack('!6s6s2s', self.dst_mac, self.src_mac, frame_type)
+        return eth_hdr + body
+
+    def _filter_packets(self, recv_packet, frame_type):
+        dst_mac = recv_packet[0:6]
+        if dst_mac != self.src_mac:
+            return None
+
+        packet_type = recv_packet[12:14]
+        if packet_type != frame_type:
+            return None
+
+        return recv_packet[14:]

@@ -2,47 +2,40 @@ from __future__ import print_function
 from struct import pack, unpack
 import socket
 import fcntl
+import random
 
-from utils import calc_checksum
+from utils import calc_checksum, IFNAME, log, hexprint
+from myethernet import MyEthernet
+from myarp import MyARP
 
 
 class MyIP:
     '''Customized IP on network layer
     '''
 
-    def __init__(self):
+    def __init__(self, dst_ip):
+        self.ethernet = None
+
         self.src_ip = self._get_src_ip()
-        self.dst_ip = None
+        self.dst_ip = dst_ip
+        self.arp = MyARP(self.src_ip)
 
-        self.send_sock = socket.socket(
-            socket.AF_INET,
-            socket.SOCK_RAW,
-            socket.IPPROTO_RAW, )
-        self.recv_sock = socket.socket(
-            socket.PF_PACKET,
-            socket.SOCK_RAW,
-            socket.htons(3), )
-        self.recv_sock.setblocking(0)
-        # self.recv_sock = socket.socket(
-        #     socket.AF_INET,
-        #     socket.SOCK_RAW,
-        #     socket.IPPROTO_TCP, )
+    def send(self, data):
+        if self.ethernet == None:
+            log('ARP looking up for', self.dst_ip)
+            dst_mac = self.arp.lookup(self.dst_ip)
+            log('MAC found:', dst_mac)
+            self.ethernet = MyEthernet(dst_mac)
 
-    def connect(self, dst_host):
-        self.dst_ip = socket.gethostbyname(dst_host)
-
-    def sendto(self, data, dst_port):
         ip_packet = self._build_packet(data)
-        bytes_sent = 0
-        while bytes_sent < len(ip_packet):
-            bytes_sent += self.send_sock.sendto(ip_packet[bytes_sent:],
-                                                (self.dst_ip, dst_port))
+        self.ethernet.send(ip_packet)
 
     def recv(self, bufsize=4096):
         data = None
         while data is None:
-            recv_packet, addr = self.recv_sock.recvfrom(bufsize)
+            recv_packet = self.ethernet.recv(bufsize)
             data = self._filter_packets(recv_packet)
+        hexprint(recv_packet)
         return data
 
     def _build_packet(self, body):
@@ -66,8 +59,8 @@ class MyIP:
         ihl = 5
         dscp = 0
         ecn = 0
-        total_length = 0
-        packet_id = 54321
+        total_length = ihl * 4 + len(body)
+        packet_id = random.randint(1, 65535)
         flags = 0
         frag_offset = 0
         ttl = 255
@@ -89,39 +82,33 @@ class MyIP:
             src_ip,
             dst_ip, )
 
-        packet = header + body
-        return packet
+        h_checksum = self._calc_checksum(header)
+        header = header[:10] + pack('!H', h_checksum) + header[12:]
+        return header + body
 
     def _get_src_ip(self):
-        ifname = 'eth0'
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         src_ip = socket.inet_ntoa(
             fcntl.ioctl(
                 s.fileno(),
                 0x8915,  # SIOCGIFADDR
-                pack('256s', ifname[:15]))[20:24])
+                pack('256s', IFNAME[:15]))[20:24])
         return src_ip
 
     def _calc_checksum(self, header):
         msg = header[:10] + pack('!H', 0) + header[12:]
         return calc_checksum(msg)
 
-    def _filter_packets(self, recv_packet):
+    def _filter_packets(self, ip_packet):
         '''verify the following attributes of received packet
         protocol, dst_ip, src_ip, ip_checksum,
         returns the packet body if the verification is passed,
         else return None
         '''
-        # Data Link Layer
-        # log('filtering Data Link Layer')
-        frame_type = unpack('!H', recv_packet[12:14])[0]
-        if frame_type != 0x0800:
-            # 0x0800 is the type of IP protocol
+        if ip_packet is None:
             return None
-
         # Network Layer
         # log('filtering Network Layer')
-        ip_packet = recv_packet[14:]
         ip_h_lengh = (unpack('!B', ip_packet[0])[0] & 0x0F) * 4
         ip_p_lengh = unpack('!H', ip_packet[2:4])[0]
         ip_header = ip_packet[:ip_h_lengh]
