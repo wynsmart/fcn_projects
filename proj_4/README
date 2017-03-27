@@ -32,6 +32,7 @@ email: shah.sam@husky.neu.edu
 3. send/recv socket (addr_family, type, protocol)
 4. problem when buffer_size of socket.recv() is smaller than data size, checksum fails
 5. congestion window and socket timeout
+6. continuous ARP request got no response
 
 <TESTING>
 1. Testing without multi-threading. (took > 20 mins to crawl)

@@ -3,7 +3,6 @@ import subprocess
 from urlparse import urlparse
 import os
 import shutil
-import time
 
 PASS = '\033[92m'
 FAIL = '\033[91m'
@@ -61,8 +60,4 @@ def main():
 
 
 if __name__ == '__main__':
-    while 1:
-        main()
-        timeout = 5
-        print('\nre-run tests in {} seconds...\n'.format(timeout))
-        time.sleep(timeout)
+    main()

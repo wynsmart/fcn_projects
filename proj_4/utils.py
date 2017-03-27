@@ -55,8 +55,12 @@ def calc_checksum(msg):
     return checksum
 
 
+def hexrepr(msg):
+    return ' '.join('{:02x}'.format(ord(x)) for x in msg)
+
+
 def hexprint(msg):
     for i in xrange(0, len(msg), 16):
-        part_1 = ' '.join('{:02x}'.format(ord(x)) for x in msg[i:i + 8])
-        part_2 = ' '.join('{:02x}'.format(ord(x)) for x in msg[i + 8:i + 16])
-        print('{}   {}'.format(part_1, part_2))
+        print('{}   {}'.format(
+            hexrepr(msg[i:i + 8]),
+            hexrepr(msg[i + 8:i + 16]), ))

@@ -1,10 +1,12 @@
 from __future__ import print_function
 from struct import pack, unpack
+import subprocess
 import socket
 import fcntl
 import random
+import re
 
-from utils import calc_checksum, IFNAME, log, hexprint
+from utils import calc_checksum, IFNAME, log, hexrepr
 from myethernet import MyEthernet
 from myarp import MyARP
 
@@ -14,19 +16,17 @@ class MyIP:
     '''
 
     def __init__(self, dst_ip):
-        self.ethernet = None
-
         self.src_ip = self._get_src_ip()
         self.dst_ip = dst_ip
+
         self.arp = MyARP(self.src_ip)
+        gateway_ip = self._get_gateway_ip()
+        log('ARP looking up for', gateway_ip)
+        dst_mac = self.arp.lookup(gateway_ip)
+        log('MAC found:', hexrepr(dst_mac))
+        self.ethernet = MyEthernet(dst_mac)
 
     def send(self, data):
-        if self.ethernet == None:
-            log('ARP looking up for', self.dst_ip)
-            dst_mac = self.arp.lookup(self.dst_ip)
-            log('MAC found:', dst_mac)
-            self.ethernet = MyEthernet(dst_mac)
-
         ip_packet = self._build_packet(data)
         self.ethernet.send(ip_packet)
 
@@ -35,7 +35,6 @@ class MyIP:
         while data is None:
             recv_packet = self.ethernet.recv(bufsize)
             data = self._filter_packets(recv_packet)
-        hexprint(recv_packet)
         return data
 
     def _build_packet(self, body):
@@ -87,13 +86,16 @@ class MyIP:
         return header + body
 
     def _get_src_ip(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        src_ip = socket.inet_ntoa(
-            fcntl.ioctl(
-                s.fileno(),
-                0x8915,  # SIOCGIFADDR
-                pack('256s', IFNAME[:15]))[20:24])
+        if_info = subprocess.check_output(['ifconfig'])
+        pattern = r"^{}.+\n\s+inet addr:(\S+).+$".format(IFNAME)
+        src_ip = re.search(pattern, if_info, re.M).group(1)
         return src_ip
+
+    def _get_gateway_ip(self):
+        route_info = subprocess.check_output(['route', '-n'])
+        pattern = r"^0\.0\.0\.0\s+(\S+).+G.+{}$".format(IFNAME)
+        gateway_ip = re.search(pattern, route_info, re.M).group(1)
+        return gateway_ip
 
     def _calc_checksum(self, header):
         msg = header[:10] + pack('!H', 0) + header[12:]

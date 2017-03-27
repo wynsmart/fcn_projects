@@ -30,7 +30,7 @@ class MyARP:
             mac_addr = self._filter_packets(data)
 
         if mac_addr is None:
-            return self.lookup(ip_addr, retry = retry - 1)
+            return self.lookup(ip_addr, retry=retry - 1)
 
         return mac_addr
 
@@ -71,12 +71,3 @@ class MyARP:
         if receiver_ip != local_ip:
             return None
         return recv_packet[8:14]
-
-
-if __name__ == "__main__":
-    arp = MyARP('172.16.248.10')
-    host = 'david.choffnes.com'
-    ip_addr = socket.gethostbyname(host)
-    print(ip_addr)
-    mac_addr = arp.lookup(ip_addr)
-    hexprint(mac_addr)

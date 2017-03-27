@@ -23,8 +23,6 @@ class MyEthernet:
 
         self.src_mac = self.send_sock.getsockname()[-1]
         self.dst_mac = dst_mac
-        hexprint(self.src_mac)
-        hexprint(self.dst_mac)
 
     def send(self, data, frame_type=IP_FRAME):
         eth_packet = self._build_packet(data, frame_type)
@@ -33,14 +31,11 @@ class MyEthernet:
             bytes_sent += self.send_sock.send(eth_packet[bytes_sent:])
 
     def recv(self, bufsize, frame_type=IP_FRAME):
-        data = None
         try:
             recv_packet = self.recv_sock.recv(bufsize)
-            data = self._filter_packets(recv_packet, frame_type)
+            return self._filter_packets(recv_packet, frame_type)
         except:
-            pass
-
-        return data
+            return None
 
     def _build_packet(self, body, frame_type):
         '''Assemble ethernet header fields appending body
