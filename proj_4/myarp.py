@@ -18,7 +18,6 @@ class MyARP:
         self.src_ip = src_ip
 
     def lookup(self, ip_addr, retry=3):
-        # TODO: fix failure on continuous lookups
         if not retry:
             exit('ARP failed, please retry later')
         arp_packet = self._build_packet(ip_addr)

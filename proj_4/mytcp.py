@@ -23,7 +23,7 @@ class MyTCP:
         self.seq_num = random.randrange(1 << 32)
         self.ack_num = 0
 
-        self.cwnd = 1
+        self.cwnd = 32
         self.adv_wnd = None
         self.ssthresh = None
 
@@ -67,15 +67,14 @@ class MyTCP:
         self.connected = False
 
     def sendall(self, data, retry=3):
-        # TODO: handle 400 bad request
         if not len(data):
             return
         if not retry:
             exit('remote is not responding')
-        log('sending:', data)
         init_seq = self.seq_num
         wnd = int(min(self.cwnd, self.adv_wnd, 1000))
         flags = MyTCP.PSH if wnd >= len(data) else 0
+        log('sending:', data[:wnd])
         bytes_sent = self._send(data[:wnd], flags)
         timer = Timer(60)
         while not timer.timeout():
@@ -97,7 +96,6 @@ class MyTCP:
         if self.seq_num == init_seq:
             self.sendall(data, retry=retry - 1)
         else:
-            log('sent:', data[:self.seq_num - init_seq])
             self.sendall(data[self.seq_num - init_seq:])
 
     def recv(self, bufsize=4096):
@@ -261,7 +259,7 @@ class MyTCP:
 
         # Verification passed, accept data
         data = tcp_packet[tcp_h_length:]
-        log('accepted {} ({} bytes)'.format(seq_num, len(data)))
+        log('accepted: {} ({} bytes)'.format(seq_num, len(data)))
         self.adv_wnd = unpack('!H', tcp_header[14:16])[0]
         if not self.connected:
             self.ssthresh = self.adv_wnd

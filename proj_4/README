@@ -33,6 +33,7 @@ email: shah.sam@husky.neu.edu
 4. problem when buffer_size of socket.recv() is smaller than data size, checksum fails
 5. congestion window and socket timeout
 6. continuous ARP request got no response
+7. turn off checksum offloading
 
 <TESTING>
 1. Testing without multi-threading. (took > 20 mins to crawl)
