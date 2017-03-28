@@ -28,12 +28,16 @@ class MyTCP:
         self.ssthresh = None
 
     def connect(self, netloc, retry=3):
+        '''Connect to destination host and port
+        Performs TCP handshake to create connection
+        '''
         if not retry:
             exit('cannot connect to the host')
         dst_host, self.dst_port = netloc
         dst_ip = socket.gethostbyname(dst_host)
         self.ip = MyIP(dst_ip)
         log('local:', self.ip.src_ip, self.src_port)
+
         # TCP handshake
         log('connecting:', self.ip.dst_ip, self.dst_port)
         log('sending: SYN')
@@ -52,6 +56,8 @@ class MyTCP:
         log('status', self.seq_num, self.ack_num)
 
     def close(self):
+        '''Close TCP connection by sending termination messages
+        '''
         log('disconnecting')
         log('sending: FIN')
         self._send('', flags=MyTCP.FIN)
@@ -67,6 +73,8 @@ class MyTCP:
         self.connected = False
 
     def sendall(self, data, retry=3):
+        '''Send given data with congestion control
+        '''
         if not len(data):
             return
         if not retry:
@@ -99,6 +107,8 @@ class MyTCP:
             self.sendall(data[self.seq_num - init_seq:])
 
     def recv(self, bufsize=4096):
+        '''Receive next packet in sequence
+        '''
         log('waiting contents...')
         data = self._recv(bufsize, timeout=3 * 60)
         if data is None:
@@ -107,6 +117,8 @@ class MyTCP:
         return data
 
     def _send(self, data, flags=0):
+        '''send given data with custom tcp flags
+        '''
         if self.connected:
             flags |= MyTCP.ACK
         tcp_packet = self._build_packet(data, flags)
@@ -114,6 +126,8 @@ class MyTCP:
         return len(data)
 
     def _recv(self, bufsize=4096, flags=0, timeout=60):
+        '''receive data from socket, waiting for given timeout
+        '''
         log('looking-for:', self.ack_num)
         timer = Timer(timeout)
         data = None
@@ -219,7 +233,7 @@ class MyTCP:
 
     def _filter_packets(self, tcp_packet, flags):
         '''verify the following attributes of received packet
-        dst_port, src_port, tcp_checksum, seq_num, flags
+        (dst_port, src_port, tcp_checksum, seq_num, flags)
         returns the parsed packet if the verification is passed,
         else return None
         '''

@@ -19,6 +19,7 @@ class MyIP:
         self.src_ip = self._get_src_ip()
         self.dst_ip = dst_ip
 
+        # ARP looking up for gateway
         self.arp = MyARP(self.src_ip)
         gateway_ip = self._get_gateway_ip()
         log('ARP looking up for', gateway_ip)
@@ -27,10 +28,14 @@ class MyIP:
         self.ethernet = MyEthernet(dst_mac)
 
     def send(self, data):
+        '''send TCP packet over IP
+        '''
         ip_packet = self._build_packet(data)
         self.ethernet.send(ip_packet)
 
     def recv(self, bufsize=4096):
+        '''receive IP packet, and receive the data body (AKA TCP packet)
+        '''
         data = None
         while data is None:
             recv_packet = self.ethernet.recv(bufsize)
@@ -86,24 +91,30 @@ class MyIP:
         return header + body
 
     def _get_src_ip(self):
+        '''use `ifconfig` to get local ip address
+        '''
         if_info = subprocess.check_output(['ifconfig'])
         pattern = r"^{}.+\n\s+inet addr:(\S+).+$".format(IFNAME)
         src_ip = re.search(pattern, if_info, re.M).group(1)
         return src_ip
 
     def _get_gateway_ip(self):
+        '''use `route -n` to get gateway ip address
+        '''
         route_info = subprocess.check_output(['route', '-n'])
         pattern = r"^0\.0\.0\.0\s+(\S+).+G.+{}$".format(IFNAME)
         gateway_ip = re.search(pattern, route_info, re.M).group(1)
         return gateway_ip
 
     def _calc_checksum(self, header):
+        '''calculate checksum for ip headers
+        '''
         msg = header[:10] + pack('!H', 0) + header[12:]
         return calc_checksum(msg)
 
     def _filter_packets(self, ip_packet):
         '''verify the following attributes of received packet
-        protocol, dst_ip, src_ip, ip_checksum,
+        (protocol, dst_ip, src_ip, ip_checksum)
         returns the packet body if the verification is passed,
         else return None
         '''

@@ -12,7 +12,6 @@ class MyHTTP:
     '''
 
     def __init__(self):
-        self.tcp = socket.socket
         self.tcp = MyTCP
 
     def get(self, url):

@@ -18,6 +18,8 @@ class MyARP:
         self.src_ip = src_ip
 
     def lookup(self, ip_addr, retry=3):
+        '''Look up the MAC address of given IP address
+        '''
         if not retry:
             exit('ARP failed, please retry later')
         arp_packet = self._build_packet(ip_addr)
@@ -63,6 +65,11 @@ class MyARP:
         return arp_hdr + arp_data
 
     def _filter_packets(self, recv_packet):
+        '''verify the following attributes of received packet
+        (receiver_ip)
+        returns the packet body if the verification is passed,
+        else return None
+        '''
         if recv_packet is None:
             return None
         receiver_ip = recv_packet[24:28]

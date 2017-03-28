@@ -8,6 +8,8 @@ IFNAME = 'eth0'
 
 
 class Timer:
+    '''Custom timer for some duration, used for timeout controls
+    '''
     def __init__(self, duration):
         self.duration = duration
         self.st_time = self.now()
@@ -42,6 +44,8 @@ def log(*arguments):
 
 
 def calc_checksum(msg):
+    '''Checksum algorithm for given msg, used for TCP/IP checksums
+    '''
     if len(msg) & 1:
         msg += pack('!B', 0)
 
@@ -56,10 +60,14 @@ def calc_checksum(msg):
 
 
 def hexrepr(msg):
+    '''Returns the hex representation of given message
+    '''
     return ' '.join('{:02x}'.format(ord(x)) for x in msg)
 
 
 def hexprint(msg):
+    '''Prints Wireshark like hex representation of given msg
+    '''
     for i in xrange(0, len(msg), 16):
         print('{}   {}'.format(
             hexrepr(msg[i:i + 8]),

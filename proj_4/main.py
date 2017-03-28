@@ -6,5 +6,6 @@ from myhttp import MyHTTP
 
 if __name__ == '__main__':
     utils.load_args()
-    utils.log(utils.args.url)
-    MyHTTP().get(utils.args.url)
+    url = utils.args.url
+    utils.log(url)
+    MyHTTP().get(url)
