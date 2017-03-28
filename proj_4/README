@@ -1,4 +1,4 @@
-## PERSONAL INFO
+<PERSONAL INFO>
 name: Fan Yang
 nuid: 00-179-7661
 email: yang.fan7@husky.neu.edu
@@ -8,7 +8,7 @@ nuid: 00-125-8979
 email: shah.sam@husky.neu.edu
 
 
-## HIGH-LEVEL APPROACH
+<HIGH-LEVEL APPROACH>
 
 Initial call to the MyHTTP class get request with the input url.
 We check for the application protocol to be http else error is thrown
@@ -38,7 +38,7 @@ The `_filter_packet` method in the ethernet class is used to filter incoming pac
 The MyARP class is used to build a ARP packet to send an arp request to the local gateway, to fetch it's mac address. The filter packet method in this case is used to filter packets from the gateway. It is given 3 retries. 
 The lookup method creates an ARP packet and passes the data to Ethernet class to send it over the sockets.
 
-## CHALLENGES
+<CHALLENGES>
 1. Handle chunked http response
 2. TCP checksum algorithm
 3. Send/recv socket types (addr_family, type, protocol)
@@ -50,12 +50,12 @@ The lookup method creates an ARP packet and passes the data to Ethernet class to
 9. Interfacing with Ethernet
 10. Turn off checksum offloading
 
-## TESTING
+<TESTING>
 1. Enabling & Disabling checksum offload in TCP
 2. Sending ARP request to gateway, destination
 3. ran tester.py on 32/64 bits Ubuntu12 on VMWare
 
-## WORK LOAD
+<WORK LOAD>
 Fan Yang:
 - HTTP, TCP, IP, ARP
 - Auto testing script
