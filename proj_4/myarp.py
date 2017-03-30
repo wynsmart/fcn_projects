@@ -1,9 +1,6 @@
 from __future__ import print_function
 from struct import pack, unpack
-from uuid import getnode
 import socket
-import sys
-import binascii
 
 from utils import IFNAME, hexprint, Timer
 from myethernet import MyEthernet

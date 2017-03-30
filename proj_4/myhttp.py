@@ -1,6 +1,6 @@
 from __future__ import print_function
-import re
 from urlparse import urlparse
+import re
 import socket
 
 from utils import log
