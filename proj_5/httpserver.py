@@ -1,9 +1,6 @@
-from http.server import (
-    HTTPServer,
-    BaseHTTPRequestHandler, )
-from urllib.request import (urlopen, )
-from urllib.error import (URLError, )
-import socket
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.request import urlopen
+from urllib.error import URLError, HTTPError
 import utils
 
 
@@ -26,21 +23,42 @@ class MyReqHandler(BaseHTTPRequestHandler):
         utils.log('origin:', self.server.originHost, self.server.originPort)
         utils.log('requesting:', self.path)
         res = self.prep_response()
-        self.send_response(200)
-        self.send_header('Content-Type', 'text/html; charset=UTF-8')
+        self.send_response(res.code)
+        self.send_headers(res.headers)
+        self.wfile.write(res.body.encode())
+
+    def send_headers(self, headers):
+        for k, v in headers.items():
+            self.send_header(k, v)
         self.end_headers()
-        self.wfile.write(res)
 
     def prep_response(self):
+        return self.fetch_origin()
+
+    def fetch_origin(self):
         url = 'http://{}:{}{}'.format(self.server.originHost,
                                       self.server.originPort, self.path)
+        utils.log('fetching origin:', url)
         try:
             f = urlopen(url)
+        except HTTPError as e:
+            return MyResponse(e.code, e.headers, e.reason)
         except URLError as e:
             utils.log(e.reason)
-            return None
+            exit(e.reason)
 
-        return f.read()
+        res = MyResponse(f.getcode(), f.info(), f.read().decode())
+        return res
+
+
+class MyResponse:
+    def __init__(self, code, headers, body):
+        self.code = code
+        self.headers = headers
+        self.body = body
+        if self.headers.get('Transfer-Encoding') == 'chunked':
+            # remove Chunked Transfer-Encoding from header
+            del self.headers['Transfer-Encoding']
 
 
 def main():
