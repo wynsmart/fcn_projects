@@ -4,4 +4,4 @@ src=$(pwd)
 export PYTHONPATH=$src
 
 # run main program
-# sudo python -O $src"/main.py" "$@"
+# sudo python -O "$src/main.py" "$@"
