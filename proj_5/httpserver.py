@@ -18,7 +18,7 @@ class MyServer:
         sock = socket.socket()
         try:
             sock.bind((self.ip, self.port))
-            sock.listen()
+            sock.listen(5)
             utils.log('HTTP Server -> {}'.format(sock.getsockname()))
         except Exception as e:
             exit(e)
