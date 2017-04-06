@@ -79,16 +79,8 @@ for Ethernet:
 - verify the IP and ARP frame types
 
 <CHALLENGES>
-1. Handle chunked http response
-2. TCP checksum algorithm
-3. Send/recv socket types (addr_family, type, protocol)
-4. Checksum fails when bufsize for socket.recv() is smaller than packet size
-5. Congestion window and socket timeout
-6. Continuous ARP requests for destination IP address got no response
-7. Finding the gateway IP
-8. Verifying incoming ARP responses
-9. Interfacing with Ethernet
-10. Turn off checksum offloading
+1. dns: '\xC0\x0C' changes after packing
+2. dns: flags
 
 <TESTING>
 1. Enabling & Disabling checksum offload in TCP
