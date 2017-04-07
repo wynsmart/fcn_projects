@@ -1,8 +1,11 @@
 from urllib.request import urlopen
 from urllib.error import URLError, HTTPError
+import utils
 import threading
 import socket
-import utils
+import json
+import zlib
+import sqlite3
 
 
 class MyServer:
@@ -13,6 +16,7 @@ class MyServer:
         self.originPort = 8080
         self.maxConn = 9999
         self.threads = []
+        self.cache = MyCache()
 
     def start(self):
         sock = socket.socket()
@@ -57,10 +61,14 @@ class MyReqHandler:
 
     def do_GET(self):
         res = self.prep_response()
-        self.send_response(res.code)
-        self.send_headers(res.headers)
-        self.send_body(res.body)
-        self.done()
+        try:
+            self.send_response(res.code)
+            self.send_headers(res.headers)
+            self.send_body(res.body)
+        except Exception as e:
+            utils.log(e)
+        finally:
+            self.done()
 
     def send_response(self, code):
         reason_phrases = {
@@ -117,15 +125,22 @@ class MyReqHandler:
         self.write(body)
 
     def write(self, data):
-        self.conn.sendall(data.encode())
+        data_bytes = data if type(data) is type(bytes()) else data.encode()
+        self.conn.sendall(data_bytes)
 
     def done(self):
         self.conn.close()
         utils.log(self.client, 'done')
 
     def prep_response(self):
-        # TODO: managing cache
-        return self.fetch_origin()
+        cached_res = self.server.cache.get(self.path)
+        if cached_res is None:
+            res = self.fetch_origin()
+            self.server.cache.set(self.path, res)
+            return res
+        else:
+            utils.log(self.client, 'respond with cache')
+            return cached_res
 
     def fetch_origin(self):
         url = 'http://{}:{}{}'.format(
@@ -136,33 +151,91 @@ class MyReqHandler:
         try:
             f = urlopen(url)
         except HTTPError as e:
-            return MyResponse(e.code, e.headers, e.reason)
+            return MyResponse(e.code, e.headers, e.reason.encode())
         except URLError as e:
             utils.log(e.reason)
             exit(e.reason)
 
-        res = MyResponse(f.getcode(), f.info(), f.read().decode())
+        res = MyResponse(f.getcode(), f.info(), f.read())
         return res
 
 
 class MyResponse:
-    def __init__(self, code, headers, body):
+    def __init__(self, code, headers, body_bytes):
         self.code = code
         self.headers = headers
-        self.body = body
+        self.body = body_bytes
         if self.headers.get('Transfer-Encoding') == 'chunked':
             # remove Chunked Transfer-Encoding from header
             del self.headers['Transfer-Encoding']
 
 
+class MyCache:
+    # TODO: Implement in memory cache as well
+    def __init__(self):
+        # TODO: don't cache dynamic pages such as Special:Random
+        self.dbname = 'cache.db'
+        self.tablename = 'Cache'
+        conn = sqlite3.connect(self.dbname)
+        c = conn.cursor()
+        c.execute("""
+        create table if not exists `{}` (
+        	`url` text primary key,
+        	`code` integer not null,
+        	`headers` blob not null,
+        	`body` blob not null
+        )
+        """.format(self.tablename))
+        conn.commit()
+
+    def set(self, path, res):
+        # TODO: test and handle db concurrent writes
+        conn = sqlite3.connect(self.dbname)
+        c = conn.cursor()
+        headers = {k: v for k, v in res.headers.items()}
+        headers_json = json.dumps(headers, separators=(',', ':'))
+        headers_lite = zlib.compress(headers_json.encode())
+        body_lite = zlib.compress(res.body)
+        subs = (path, res.code, headers_lite, body_lite)
+        c.execute("""
+        replace into `{}` (`url`, `code`, `headers`, `body`) values (?,?,?,?)
+        """.format(self.tablename), subs)
+        conn.commit()
+        utils.log('cached:', path)
+
+    def get(self, path):
+        conn = sqlite3.connect(self.dbname)
+        c = conn.cursor()
+        c.execute("""
+        select `code`, `headers`, `body` from `{}` where `url`=?
+        """.format(self.tablename), (path, ))
+        cache = c.fetchone()
+        if cache is None:
+            return None
+        code, headers_lite, body_lite = cache
+        headers_json = zlib.decompress(headers_lite).decode()
+        headers = json.loads(headers_json)
+        body = zlib.decompress(body_lite)
+        # utils.log(code, headers, len(body))
+        return MyResponse(code, headers, body)
+
+    def drop(self, url):
+        conn = sqlite3.connect(self.dbname)
+        c = conn.cursor()
+        c.execute("""
+        delete from `{}` where `url`=?
+        """.format(self.tablename), (url, ))
+        conn.commit()
+
+
 def main():
-    port = int(utils.args.port)
+    port = utils.args.port
     origin = utils.args.origin
     MyServer(port, origin).start()
 
 
 def test():
-    port = 45678
+    port = 55555
     origin = 'ec2-54-166-234-74.compute-1.amazonaws.com'
     MyServer(port, origin).start()
 
