@@ -96,7 +96,7 @@ class MyDNS(object):
         return result
 
     def get_best_replica(self, host):
-        # my EC-2 temp
+        # TODO: select best replica IP
         return '52.90.80.45'
 
 

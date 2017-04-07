@@ -10,22 +10,32 @@ email: shah.sam@husky.neu.edu
 
 <HIGH-LEVEL APPROACH>
 HTTP:
-1. The dnsserver, httpserver bash scripts are called to initiate the dnsserver.py, httpserver.py
-2. the httpserver class is initialized with the origin, port number , max # of connections
-3. The socket is initialized and threads are created for new connections
-4. This class calls the MyReqHandler to handle the incoming connections and their requests.
-5. Handler ensures that only 'GET' requests are accepted 
+- The httpserver bash script is called to initiate the httpserver.py
+- the MyServer class is initialized with the origin, port number , max # of connections
+- The socket is initialized and threads are created for new connections
+- This class calls the MyReqHandler to handle the incoming connections and their requests.
+- Handler ensures that only 'GET' requests are accepted
+- Server responds with cache if found, else fetch origin
+- MyCache class provides APIs for cache I/O
+- Cache data is compressed, and stored in Sqlite database
 
 DNS:
-1. The dns server is initialized with the port number and the name of the requested website
-2. the server waits for incoming request and constructs packet with a response, which is then send back.
-3. The QueryParser class is used to unpack the DNS Request to get the necessary parameters.
+- The dnsserver bash script is called to initiate the dnsserver.py
+- The dns server is initialized with the port number and the name of the requested website
+- The server waits for incoming request and constructs packet with a response, which is then send back.
+- The QueryParser class is used to unpack the DNS Request to get the necessary parameters.
+- Only opcode '0' and given domain name is supported, otherwise ignore the requests
+- Currently responds with origin IP address, will be replaced with smart routing for final version
 
 <CHALLENGES>
-1. dns: '\xC0\x0C' changes after packing, which is used as a pointer to the website name in the packet.
-2. dns: which flags to exactly set
+- httpserver: needs to remove 'Transfer-Encoding: chunked' in response header
+- multi-threads I/O locks based on separate cache file
+- dns: '\xC0\x0C' changes after packing, which is used as a pointer to the website name in the packet. This is because python3 recognize a byte as integer rather than string.
+- dns: which flags to exactly set
+- Wireshark doesn't parse dns packets which is bind on high ports. Manually dumped the packets in binary while debugging
 
 <TESTING>
+- Get root page, firstly responds with origin, then cached for future gets
 - Tested with other domains to get an invalid response.
 
 <WORK LOAD>
