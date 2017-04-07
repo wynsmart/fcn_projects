@@ -9,91 +9,28 @@ email: shah.sam@husky.neu.edu
 
 
 <HIGH-LEVEL APPROACH>
+HTTP:
+1. The dnsserver, httpserver bash scripts are called to initiate the dnsserver.py, httpserver.py
+2. the httpserver class is initialized with the origin, port number , max # of connections
+3. The socket is initialized and threads are created for new connections
+4. This class calls the MyReqHandler to handle the incoming connections and their requests.
+5. Handler ensures that only 'GET' requests are accepted 
 
-Initial call to the MyHTTP class get request with the input url.
-We check for the application protocol to be http else error is thrown
-We generate the headers for the request and call the custom HTTP function.
-The custom http function verifies the existence of hostname and initializes the custom TCP object. It tries to connect to the input host at the default port unless specified.
-The `res_complete` method is used to ensure that the result received is complete, or fragments are yet to be recieved.
-
-The MyTCP class contain connect method tries to resolve the input host name to it's IPv4 IP address then initializes the IP class with the given ip address.
-After sending the SYN request, the method verifies if the flag on the incoming request is SYN or ACK, else it logs an error.
-By default the `send` and `sendall` method are alloted 3 retries.
-The `sendall` initializes the windows size and sends data. If it successfully sends, it increases the size of the window.
-`_filter_packets` method is used to filter packets from the destination and for the given source.
-`_calc_checksum` is used to calculate checksum for a given packet.
-
-MyIP class construct IP packets i.e. at the network layer.
-It initially calls the `_get_gateway` method, which calls executes the `route -n` command to getch the gateway ip address.
-The MyIP class the sends an ARP request to the local gateway to get it's MAC address.
-Ethernet class is then instantiated with the MAC address of the gateway.
-
-The `_build_packet` method in all files is used to build a packet/frame for that layer/protocol.
-
-The sockets for sending and receiving are initialized in the ethernet class.
-The `IFNAME` is the name of the interface which is defined in the utils.py file, we are using 'eth0'.
-The `_filter_packet` method in the ethernet class is used to filter incoming packets destined for the source machine.
-
-The MyARP class is used to build a ARP packet to broadcast an ARP request to local network, looking for the local gateway's MAC address with its IP. The filter packet method in this case is used to filter packets from the gateway. It is given 3 retries.
-The lookup method creates an ARP packet and passes the data to Ethernet class to send it over the sockets.
-
-<TCP/IP features>
-for HTTP:
-- support only HTTP protocol
-- implemented HTTP GET request
-- handle only HTTP 200 status
-- support for chunked transfer encoding
-
-for TCP:
-- verify the checksums of incoming TCP packets
-- generate correct checksums for outgoing packets
-- select a valid local port to send traffic on
-- perform the three-way handshake
-- correctly handle connection teardown
-- handle sequence and acknowledgement numbers
-- manage the advertised window
-- basic timeout retransmission functionality
-- receive out-of-order incoming packets and reorder them
-- identify and discard duplicate packets
-- implement a basic congestion window
-
-for IP:
-- validating the checksums of incoming packets
-- setting the correct version
-- header length and total length
-- protocol identifier
-- checksum in each outgoing packet
-- correctly set the source and destination IP in each outgoing packet
-- query for the IP of the remote HTTP server
-- find out local IP with `ifconfig`
-- find out local network gateway IP with `route -n`
-
-for ARP:
-- MAC address lookup with its IP
-- correctly set the header of outgoing ARP packet
-- verify the destination IP of incoming ARP packet
-
-for Ethernet:
-- correctly set the header of Ethernet packet
-- verify the destination MAC of incoming packets
-- verify the IP and ARP frame types
+DNS:
+1. The dns server is initialized with the port number and the name of the requested website
+2. the server waits for incoming request and constructs packet with a response, which is then send back.
+3. The QueryParser class is used to unpack the DNS Request to get the necessary parameters.
 
 <CHALLENGES>
-1. dns: '\xC0\x0C' changes after packing
-2. dns: flags
+1. dns: '\xC0\x0C' changes after packing, which is used as a pointer to the website name in the packet.
+2. dns: which flags to exactly set
 
 <TESTING>
-1. Enabling & Disabling checksum offload in TCP
-2. Sending ARP request to gateway, destination
-3. ran tester.py on 32/64 bits Ubuntu12 on VMWare
+- Tested with other domains to get an invalid response.
 
 <WORK LOAD>
 Fan Yang:
-- HTTP, TCP, IP, ARP
-- Auto testing script
-- [Files] myhttp.py, mytcp.py, myip.py, tester.py
+- [file] httpserver.py
 
 Samkeet Shah:
-- IP, ARP, Ethernet
-- Finding the Gateway IP and other network information
-- [Files] myethernet.py, myarp.py
+- [file] dnsserver.py
