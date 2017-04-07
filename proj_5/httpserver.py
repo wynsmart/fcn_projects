@@ -1,11 +1,12 @@
 from urllib.request import urlopen
 from urllib.error import URLError, HTTPError
 import utils
+import re
 import threading
 import socket
-import json
 import zlib
-import sqlite3
+import hashlib
+import os
 
 
 class MyServer:
@@ -32,153 +33,145 @@ class MyServer:
             if len(self.threads) >= self.maxConn:
                 continue
             conn, _ = sock.accept()
-            utils.log(conn.getpeername(), 'connect')
             handler = MyReqHandler(self, conn)
-            if handler.method != 'GET':
-                handler.done()
-                utils.log('only GET method is supported')
-                continue
-            t = threading.Thread()
-            t.daemon = True
-            t.run = handler.do_GET
-            t.start()
-            self.threads.append(t)
+            handler.start()
+            # utils.log(conn.getpeername(), 'connect')
+            # handler = MyReqHandler(self, conn)
+            # if handler.method != 'GET':
+            #     handler.done()
+            #     utils.log('only GET method is supported')
+            #     continue
+            # t = threading.Thread()
+            # t.daemon = True
+            # t.run = handler.do_GET
+            # t.start()
+            self.threads.append(handler)
 
 
-class MyReqHandler:
+class MyReqHandler(threading.Thread):
     def __init__(self, serverInstance, connection):
+        super().__init__()
+        self.daemon = True
         self.server = serverInstance
         self.conn = connection
         self.client = self.conn.getpeername()
-        request = self.conn.recv(4096).decode()
-        req_essential = request.split('\r\n')[0]
-        utils.log(self.client, req_essential)
-        try:
-            self.method, self.path, self.version = req_essential.split(' ')
-            # utils.log(self.method, self.path, self.version)
-        except Exception:
-            self.method = None
+        utils.log(self.client, 'connect')
+
+    def run(self):
+        raw_request = self.conn.recv(4096)
+        self.req = MyRequest(raw_request)
+        utils.log(self.client, self.req.method, self.req.path)
+        if self.req.method != 'GET':
+            self.done()
+            utils.log('only GET method is supported')
+            exit()
+        self.do_GET()
 
     def do_GET(self):
         res = self.prep_response()
         try:
-            self.send_response(res.code)
-            self.send_headers(res.headers)
-            self.send_body(res.body)
+            self.conn.sendall(res)
         except Exception as e:
             utils.log(e)
         finally:
             self.done()
-
-    def send_response(self, code):
-        res = '{} {} {}\r\n'.format(
-            self.version,
-            code,
-            utils.HTTP_REASON_PHRASES[code], )
-        self.write(res)
-
-    def send_headers(self, headers):
-        for k, v in headers.items():
-            self.write('{}: {}\r\n'.format(k, v))
-        self.write('\r\n')
-
-    def send_body(self, body):
-        self.write(body)
-
-    def write(self, data):
-        data_bytes = data if type(data) is type(bytes()) else data.encode()
-        self.conn.sendall(data_bytes)
 
     def done(self):
         self.conn.close()
         utils.log(self.client, 'done')
 
     def prep_response(self):
-        cached_res = self.server.cache.get(self.path)
+        cached_res = self.server.cache.get(self.req.path)
         if cached_res is None:
             res = self.fetch_origin()
-            self.server.cache.set(self.path, res)
+            self.server.cache.set(self.req.path, res)
             return res
         else:
             utils.log(self.client, 'respond with cache')
             return cached_res
 
     def fetch_origin(self):
-        url = 'http://{}:{}{}'.format(
-            self.server.originHost,
-            self.server.originPort,
-            self.path, )
-        utils.log(self.client, url)
-        try:
-            f = urlopen(url)
-        except HTTPError as e:
-            return MyResponse(e.code, e.headers, e.reason.encode())
-        except URLError as e:
-            utils.log(e.reason)
-            exit(e.reason)
-
-        res = MyResponse(f.getcode(), f.info(), f.read())
+        host = self.server.originHost
+        port = self.server.originPort
+        raw_request = self.req.forward_raw(host, port)
+        sock = socket.socket()
+        sock.connect((host, port))
+        sock.sendall(raw_request)
+        res = bytes()
+        while not self.res_complete(res):
+            res += sock.recv(4096)
         return res
 
+    def res_complete(self, res):
+        '''Check whether a response is complete
+        If response is chunked encoded, then check the ending bytes;
+        Else if response has Content-Length, then check current body length;
+        '''
+        try:
+            headers, body = res.split(b'\r\n\r\n', maxsplit=1)
+        except:
+            return False
 
-class MyResponse:
-    def __init__(self, code, headers, body_bytes):
-        self.code = code
-        self.headers = headers
-        self.body = body_bytes
-        if self.headers.get('Transfer-Encoding') == 'chunked':
-            # remove Chunked Transfer-Encoding from header
-            del self.headers['Transfer-Encoding']
+        if b'Transfer-Encoding: chunked' in headers:
+            return body.endswith(b'0\r\n\r\n')
+
+        mclength = re.search(r'Content-Length: (\d+)', headers.decode())
+        if mclength is None:
+            return False
+
+        clength = int(mclength.group(1))
+        return len(body) == clength
+
+
+class MyRequest:
+    def __init__(self, raw_request):
+        self.request = raw_request.decode()
+        request_info = self.request.split('\r\n')[0]
+        try:
+            self.method, self.path, _ = request_info.split(' ')
+        except Exception:
+            self.method = None
+
+    def forward_raw(self, host, port):
+        raw_request = re.sub(
+            r'^(Host: ).+$',
+            r'\1{}:{}'.format(host, port),
+            self.request,
+            count=1,
+            flags=re.MULTILINE, ).encode()
+        return raw_request
 
 
 class MyCache:
     # TODO: Implement in memory cache as well
     def __init__(self):
         # TODO: don't cache dynamic pages such as Special:Random
-        self.dbname = 'cache.db'
-        self.tablename = 'Cache'
-        conn = sqlite3.connect(self.dbname)
-        c = conn.cursor()
-        c.execute("""
-        create table if not exists `{}` (
-        	`url` text primary key,
-        	`code` integer not null,
-        	`headers` blob not null,
-        	`body` blob not null
-        )
-        """.format(self.tablename))
-        conn.commit()
+        self.dir = './cache'
+        if not os.path.isdir(self.dir):
+            os.makedirs(self.dir)
+
+    def get_fname(self, path):
+        hashed_url = hashlib.md5(path.encode()).hexdigest()
+        return '{}/{}'.format(self.dir, hashed_url)
 
     def set(self, path, res):
         # TODO: test and handle db concurrent writes
-        conn = sqlite3.connect(self.dbname)
-        c = conn.cursor()
-        headers = {k: v for k, v in res.headers.items()}
-        headers_json = json.dumps(headers, separators=(',', ':'))
-        headers_lite = zlib.compress(headers_json.encode())
-        body_lite = zlib.compress(res.body)
-        subs = (path, res.code, headers_lite, body_lite)
-        c.execute("""
-        replace into `{}` (`url`, `code`, `headers`, `body`) values (?,?,?,?)
-        """.format(self.tablename), subs)
-        conn.commit()
-        utils.log('cached:', path)
+        fname = self.get_fname(path)
+        res_lite = zlib.compress(res)
+        with open(fname, mode='wb') as f:
+            f.write(res_lite)
+        utils.log('cached:', path, fname)
 
     def get(self, path):
-        conn = sqlite3.connect(self.dbname)
-        c = conn.cursor()
-        c.execute("""
-        select `code`, `headers`, `body` from `{}` where `url`=?
-        """.format(self.tablename), (path, ))
-        cache = c.fetchone()
-        if cache is None:
+        fname = self.get_fname(path)
+        try:
+            with open(fname, mode='rb') as f:
+                res_lite = f.read()
+        except Exception as e:
+            utils.log(e)
             return None
-        code, headers_lite, body_lite = cache
-        headers_json = zlib.decompress(headers_lite).decode()
-        headers = json.loads(headers_json)
-        body = zlib.decompress(body_lite)
-        # utils.log(code, headers, len(body))
-        return MyResponse(code, headers, body)
+        res = zlib.decompress(res_lite)
+        return res
 
     def drop(self, url):
         conn = sqlite3.connect(self.dbname)
