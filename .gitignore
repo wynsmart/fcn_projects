@@ -1,5 +1,4 @@
 *.pyc
 .remote-sync.json
 tmp/
-
-*.db
+cache/
