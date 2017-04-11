@@ -28,8 +28,8 @@ class MyDNS:
             query, addr = self.sock.recvfrom(4096)
             if b'status' in query:
                 self.cdn_report_handler(query, addr[0])
-                utils.log('CDNs:', self.online_cdns)
-                utils.log('Clients', self.client_geos)
+                # utils.log('CDNs:', self.online_cdns)
+                # utils.log('Clients', self.client_geos)
             else:
                 DNSLookupHandler(self, query, addr)
 
@@ -53,8 +53,8 @@ class MyCache(threading.Thread):
     def run(self):
         while 1:
             self.save()
-            self.server.online_cdns = {}
             utils.log('====== cache saved ======')
+            utils.log('CDNs:', self.online_cdns)
             time.sleep(self.TIME_INTERVAL)
 
     def load(self):
@@ -86,7 +86,7 @@ class DNSLookupHandler(threading.Thread):
 
     def run(self):
         req_info = Queryparser(self.query)
-        utils.log(req_info.host, 'looking up ...')
+        utils.log(self.client_addr, 'find', req_info.host)
         if req_info.opcode != 0:
             utils.log('only opcode 0 is supported')
             exit()
@@ -96,7 +96,7 @@ class DNSLookupHandler(threading.Thread):
         best_replica_ip = self.get_best_replica()
         response = self._build_packet(req_info, best_replica_ip)
         self.server.sock.sendto(response, self.client_addr)
-        utils.log(req_info.host, 'done', best_replica_ip)
+        utils.log(self.client_addr, '-->', best_replica_ip)
 
     def _build_packet(self, req_info, best_replica_ip):
         '''The header for DNS queries and responses contains field/bits in the
@@ -174,6 +174,7 @@ class DNSLookupHandler(threading.Thread):
             cdn: self.calc_dist(loc1, loc2)
             for cdn, loc2 in self.server.online_cdns.items()
         }
+        assert len(dist), 'all servers are OFFLINE'
         return sorted(dist.keys(), key=dist.get)[0]
 
     def calc_dist(self, loc1, loc2):

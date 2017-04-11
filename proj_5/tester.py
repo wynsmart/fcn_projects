@@ -1,9 +1,9 @@
 import random
-import re
 import subprocess
 import unittest
 
 import utils
+from pre_cache import parse_urls
 
 
 def call(cmd, output=False):
@@ -28,27 +28,13 @@ class MyTest(unittest.TestCase):
         call('time wget -O- http://{}:{}/{}'.format(ip, self.port, path))
 
     def test(self):
-        urls = list(self.parse_urls('popular_raw.html'))
-        for i in range(1000):
+        urls = list(parse_urls('popular_raw.html'))
+        for i in range(100):
             url = random.choice(urls)
             self.get(url)
 
     def tearDown(self):
         call('./stopCDN -dt')
-
-    def parse_urls(self, fname):
-        with open(fname, encoding='utf8') as f:
-            html = f.read()
-
-        for i in range(2000):
-            m = re.search(r'a href="([^"]+)', html, re.M)
-            html = html[m.end(1):]
-            path = m.group(1)
-            m = re.search(r'td align="right">([0-9,]+)', html, re.M)
-            html = html[m.end(1):]
-            visits = int(m.group(1).replace(',', ''))
-            print(visits, path)
-            yield path
 
 
 if __name__ == '__main__':

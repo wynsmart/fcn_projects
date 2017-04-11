@@ -4,4 +4,4 @@ src=$(pwd)
 export PYTHONPATH=$src
 
 # run main program
-python3 -O "$src/dnsserver.py" "$@"
+python3.4 -O "$src/dnsserver.py" "$@"

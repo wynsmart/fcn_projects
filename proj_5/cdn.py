@@ -1,5 +1,6 @@
 import random
 import subprocess
+from time import sleep
 
 import utils
 
@@ -7,12 +8,14 @@ DNS_FILES = [
     'dnsserver',
     'dnsserver.py',
     'utils.py',
+    'Makefile',
 ]
 CDN_FILES = [
     'cache/',
     'httpserver',
     'httpserver.py',
     'utils.py',
+    'Makefile',
 ]
 
 
@@ -37,8 +40,13 @@ class MyCDN:
         self.deploy_dns(utils.DNS_HOST)
         for host in utils.CDN_HOSTS:
             self.deploy_cdn(host)
+
         while len(self.procs):
             self.procs = [p for p in self.procs if p.poll() is None]
+            utils.log('remain jobs: {:3}'.format(len(self.procs)),
+                      override=True)
+            sleep(2)
+        utils.log()
         utils.log('finished.')
 
     def deploy_dns(self, host):
@@ -61,30 +69,26 @@ class MyCDN:
 
     def run(self):
         utils.log('running ...')
-        self.run_dns(utils.DNS_HOST)
         for host in utils.CDN_HOSTS:
             self.run_cdn(host)
+        self.run_dns(utils.DNS_HOST)
         utils.log('serving port', self.port)
 
     def run_dns(self, host):
         utils.log('host:', host)
         try:
-            self.ssh(host, 'chmod +x {}/dnsserver'.format(self.root))
-            self.ssh_async(host, 'cd {}; ./dnsserver -d -p {} -n {}'.format(
-                self.root,
-                self.port,
-                self.name, ))
+            self.ssh(host, 'cd {}; make dns'.format(self.root))
+            cmd = 'cd {}; ./dnsserver -d -p {} -n {} 2>err'
+            self.ssh_async(host, cmd.format(self.root, self.port, self.name))
         except Exception as e:
             utils.log(e)
 
     def run_cdn(self, host):
         utils.log('host:', host)
         try:
-            self.ssh(host, 'chmod +x {}/httpserver'.format(self.root))
-            self.ssh_async(host, 'cd {}; ./httpserver -d -p {} -o {}'.format(
-                self.root,
-                self.port,
-                self.origin, ))
+            self.ssh(host, 'cd {}; make cdn'.format(self.root))
+            cmd = 'cd {}; ./httpserver -d -p {} -o {} 2>err'
+            self.ssh_async(host, cmd.format(self.root, self.port, self.origin))
         except Exception as e:
             utils.log(e)
 
@@ -98,21 +102,21 @@ class MyCDN:
     def stop_dns(self, host):
         utils.log('host:', host)
         try:
-            self.ssh(host, 'pkill python3')
+            self.ssh(host, 'pkill python3.4')
         except Exception as e:
             utils.log(e)
 
     def stop_cdn(self, host):
         utils.log('host:', host)
         try:
-            self.ssh(host, 'pkill python3')
+            self.ssh(host, 'pkill python3.4')
         except Exception as e:
             utils.log(e)
 
     def scp_async(self, host, files):
         for f in files:
             p = subprocess.Popen(
-                'scp -r -i {} {} {}@{}:{}'.format(
+                'scp -rp -i {} {} {}@{}:{}'.format(
                     self.keyfile,
                     f,
                     self.username,

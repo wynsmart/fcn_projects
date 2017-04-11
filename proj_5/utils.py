@@ -1,23 +1,24 @@
 import argparse
-import subprocess
 import json
+import subprocess
+import time
 
 args = None
 
-DNS_HOST = 'login.ccs.neu.edu'
-# DNS_HOST = 'localhost'
+DNS_HOST = 'cs5700cdnproject.ccs.neu.edu'
+# DNS_HOST = 'login.ccs.neu.edu'
 DNS_NAME = 'cs5700cdn.example.com'
 CDN_ORIGIN = 'ec2-54-166-234-74.compute-1.amazonaws.com'
 CDN_HOSTS = [
     'ec2-52-90-80-45.compute-1.amazonaws.com',  # N. Virginia
     'ec2-54-183-23-203.us-west-1.compute.amazonaws.com',  # N. California
-    # 'ec2-54-70-111-57.us-west-2.compute.amazonaws.com',  # Oregon
-    # 'ec2-52-215-87-82.eu-west-1.compute.amazonaws.com',  # Ireland
-    # 'ec2-52-28-249-79.eu-central-1.compute.amazonaws.com',  # Frankfurt
-    # 'ec2-54-169-10-54.ap-southeast-1.compute.amazonaws.com',  # Singapore
-    # 'ec2-52-62-198-57.ap-southeast-2.compute.amazonaws.com',  # Sydney
-    # 'ec2-52-192-64-163.ap-northeast-1.compute.amazonaws.com',  # Tokyo
-    # 'ec2-54-233-152-60.sa-east-1.compute.amazonaws.com',  # Sao Paolo
+    'ec2-54-70-111-57.us-west-2.compute.amazonaws.com',  # Oregon
+    'ec2-52-215-87-82.eu-west-1.compute.amazonaws.com',  # Ireland
+    'ec2-52-28-249-79.eu-central-1.compute.amazonaws.com',  # Frankfurt
+    'ec2-54-169-10-54.ap-southeast-1.compute.amazonaws.com',  # Singapore
+    'ec2-52-62-198-57.ap-southeast-2.compute.amazonaws.com',  # Sydney
+    'ec2-52-192-64-163.ap-northeast-1.compute.amazonaws.com',  # Tokyo
+    'ec2-54-233-152-60.sa-east-1.compute.amazonaws.com',  # Sao Paolo
 ]
 
 
@@ -38,17 +39,19 @@ def load_args():
     args = parser.parse_args()
 
 
-def log(*arguments):
+def log(*arguments, override=False):
     '''Logger in debugging mode
     if option '-d' or '--debug' is given
     import debugging outputs will be printed
     '''
     WARNING = '\033[93m'
     ENDC = '\033[0m'
+    tm = '{0.tm_hour:02}:{0.tm_min:02}:{0.tm_sec:02}'.format(time.localtime())
     if args.debug:
-        with open('log', mode='a') as logf:
-            print('{}[dbg]{}'.format(WARNING, ENDC), *arguments)
-            print('{}[dbg]{}'.format(WARNING, ENDC), *arguments, file=logf)
+        end = '\r' if override else '\n'
+        print('{}[{}]{}'.format(WARNING, tm, ENDC), *arguments, end=end)
+    with open('log', mode='a') as logf:
+        print('{}[{}]{}'.format(WARNING, tm, ENDC), *arguments, file=logf)
 
 
 def hexrepr(msg):

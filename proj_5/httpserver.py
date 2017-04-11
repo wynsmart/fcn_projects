@@ -16,12 +16,11 @@ class MyServer:
         self.port = port
         self.originHost = origin
         self.originPort = 8080
-        self.maxConn = 9999
-        self.threads = []
         self.lock = MyFileLock()
         self.cache = MyCache(self.lock)
         utils.log('port   ->', self.port)
         utils.log('origin ->', self.originHost)
+        self.health = True
         self.h_agent = HealthAgent(reporter=self)
 
     def start(self):
@@ -34,12 +33,14 @@ class MyServer:
 
         utils.log('servering ...')
         while 1:
-            self.threads = [t for t in self.threads if t.is_alive()]
-            if len(self.threads) >= self.maxConn:
-                continue
             conn, _ = sock.accept()
-            handler = MyReqHandler(self, conn)
-            self.threads.append(handler)
+            try:
+                MyReqHandler(self, conn)
+                self.health = True
+            except Exception as e:
+                self.health = False
+                utils.log('[BAD HEALTH]', e)
+                conn.close()
 
 
 class MyReqHandler(threading.Thread):
@@ -218,15 +219,9 @@ class HealthAgent(threading.Thread):
         self.start()
 
     def run(self):
-        if self.reporter:
-            self.report()
-        elif self.receiver:
-            self.receive()
-
-    def report(self):
         TIME_INTERVAL = 5
         while 1:
-            info = {'status': True}
+            info = {'status': self.reporter.health}
             data = json.dumps(info).encode()
             self.sock.sendto(data, (utils.DNS_HOST, self.reporter.port))
             sleep(TIME_INTERVAL)
