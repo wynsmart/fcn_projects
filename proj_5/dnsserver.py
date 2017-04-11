@@ -1,33 +1,102 @@
+import json
+import math
 import socket
 import struct
+import threading
+import time
+
 import utils
 
 
-class MyDNS(object):
+class MyDNS:
     def __init__(self, port, name):
-        # TODO: check arguments. if port number is not given the assign random port from 40000-65535
         self.port = port
         self.name = name
-        # TODO: traceroute to get latest ip for cs5700cdnproject.ccs.neu.edu
+        utils.log('port ->', self.port)
+        utils.log('name ->', self.name)
         self.ip = ''
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((self.ip, self.port))
+        self.online_cdns = {}
+        self.client_geos = {}
+        self.cache = MyCache(self)
+        self.client_geos = self.cache.load()
 
     def start(self):
+        utils.log('serving ...')
         while 1:
             query, addr = self.sock.recvfrom(4096)
-            req_info = Queryparser(query)
-            utils.log(req_info.host, 'looking up ...')
-            if req_info.opcode != 0:
-                utils.log('only opcode 0 is supported')
-                continue
-            if req_info.host != self.name:
-                utils.log('unsopported host name')
-                continue
-            best_replica_ip = self.get_best_replica(req_info.host)
-            response = self._build_packet(req_info, best_replica_ip)
-            self.sock.sendto(response, addr)
-            utils.log(req_info.host, 'done', best_replica_ip)
+            if b'status' in query:
+                self.cdn_report_handler(query, addr[0])
+                utils.log('CDNs:', self.online_cdns)
+                utils.log('Clients', self.client_geos)
+            else:
+                DNSLookupHandler(self, query, addr)
+
+    def cdn_report_handler(self, query, addr):
+        cdn_info = json.loads(query.decode())
+        if cdn_info['status'] and addr not in self.online_cdns:
+            self.online_cdns[addr] = utils.get_geo(addr)
+        elif not cdn_info['status'] and addr in self.online_cdns:
+            del self.online_cdns[addr]
+
+
+class MyCache(threading.Thread):
+    def __init__(self, server):
+        super().__init__()
+        self.server = server
+        self.fname = 'cache.json'
+        self.TIME_INTERVAL = 60
+        self.daemon = True
+        self.start()
+
+    def run(self):
+        while 1:
+            self.save()
+            self.server.online_cdns = {}
+            utils.log('====== cache saved ======')
+            time.sleep(self.TIME_INTERVAL)
+
+    def load(self):
+        try:
+            with open(self.fname) as f:
+                cache = f.read()
+            return json.loads(cache)
+        except:
+            return {}
+
+    def save(self):
+        cache = json.dumps(self.server.client_geos)
+        try:
+            with open(self.fname, mode='w') as f:
+                f.write(cache)
+        except Exception as e:
+            utils.log(e)
+
+
+class DNSLookupHandler(threading.Thread):
+    def __init__(self, server, query, client_addr):
+        super().__init__()
+        self.server = server
+        self.query = query
+        self.client_addr = client_addr
+        self.client = self.client_addr[0]
+        self.daemon = True
+        self.start()
+
+    def run(self):
+        req_info = Queryparser(self.query)
+        utils.log(req_info.host, 'looking up ...')
+        if req_info.opcode != 0:
+            utils.log('only opcode 0 is supported')
+            exit()
+        if req_info.host != self.server.name:
+            utils.log('unsopported host name')
+            exit()
+        best_replica_ip = self.get_best_replica()
+        response = self._build_packet(req_info, best_replica_ip)
+        self.server.sock.sendto(response, self.client_addr)
+        utils.log(req_info.host, 'done', best_replica_ip)
 
     def _build_packet(self, req_info, best_replica_ip):
         '''The header for DNS queries and responses contains field/bits in the
@@ -95,9 +164,33 @@ class MyDNS(object):
         result = headers + req_info.query + answer
         return result
 
-    def get_best_replica(self, host):
-        # TODO: select best replica IP
-        return '52.90.80.45'
+    def get_best_replica(self):
+        '''find shortest geo-location distance in all online CDNs
+        '''
+        if self.client not in self.server.client_geos:
+            self.server.client_geos[self.client] = utils.get_geo(self.client)
+        loc1 = self.server.client_geos[self.client]
+        dist = {
+            cdn: self.calc_dist(loc1, loc2)
+            for cdn, loc2 in self.server.online_cdns.items()
+        }
+        return sorted(dist.keys(), key=dist.get)[0]
+
+    def calc_dist(self, loc1, loc2):
+        lat1, lng1 = loc1
+        radLat1 = lat1 * (math.pi / 180)
+        radLng1 = lng1 * (math.pi / 180)
+        lat2, lng2 = loc2
+        radLat2 = lat2 * (math.pi / 180)
+        radLng2 = lng2 * (math.pi / 180)
+        earth_radius = 3959
+        diffLat = (radLat1 - radLat2)
+        diffLng = (radLng1 - radLng2)
+        sinLat = math.sin(diffLat / 2)
+        sinLng = math.sin(diffLng / 2)
+        a = (sinLat**2) + math.cos(radLat1) * math.cos(radLat2) * (sinLng**2)
+        dist = earth_radius * 2 * math.asin(min(1, math.sqrt(a)))
+        return dist
 
 
 class Queryparser:
@@ -117,21 +210,11 @@ class Queryparser:
         self.query = query[12:]
 
 
-def main():
-    port = utils.args.port
-    name = utils.args.name
-    MyDNS(port, name).start()
-
-
-def test():
-    port = 44444
-    name = 'cs5700cdn.example.com'
-    MyDNS(port, name).start()
-
-
 if __name__ == '__main__':
     utils.load_args()
+    port = utils.args.port
+    name = utils.args.name
     if utils.args.test:
-        test()
-    else:
-        main()
+        port = port or 44444
+        name = name or utils.DNS_NAME
+    MyDNS(port, name).start()

@@ -1,12 +1,13 @@
-from urllib.request import urlopen
-from urllib.error import URLError, HTTPError
-import utils
-import re
-import threading
-import socket
-import zlib
 import hashlib
+import json
 import os
+import re
+import socket
+import threading
+import zlib
+from time import sleep
+
+import utils
 
 
 class MyServer:
@@ -21,6 +22,7 @@ class MyServer:
         self.cache = MyCache(self.lock)
         utils.log('port   ->', self.port)
         utils.log('origin ->', self.originHost)
+        self.h_agent = HealthAgent(reporter=self)
 
     def start(self):
         sock = socket.socket()
@@ -37,7 +39,6 @@ class MyServer:
                 continue
             conn, _ = sock.accept()
             handler = MyReqHandler(self, conn)
-            handler.start()
             self.threads.append(handler)
 
 
@@ -48,6 +49,7 @@ class MyReqHandler(threading.Thread):
         self.server = serverInstance
         self.conn = connection
         self.client = self.conn.getpeername()
+        self.start()
         utils.log(self.client, 'connect')
 
     def run(self):
@@ -83,7 +85,6 @@ class MyReqHandler(threading.Thread):
         res = self.fetch_origin()
         self.server.cache.set(self.req.path, res)
         return res
-
 
     def fetch_origin(self):
         # TODO: retry when failure with timeouted socket
@@ -141,6 +142,7 @@ class MyRequest:
 
 class MyCache:
     # TODO: Implement in memory cache as well
+
     def __init__(self, lock):
         # TODO: don't cache dynamic pages such as Special:Random
         self.lock = lock
@@ -157,10 +159,14 @@ class MyCache:
         fname = self.get_fname(path)
         res_lite = zlib.compress(res)
         self.lock.acquire(fname)
-        with open(fname, mode='wb') as f:
-            f.write(res_lite)
-        self.lock.release(fname)
-        utils.log('cached:', path, '->', fname)
+        try:
+            with open(fname, mode='wb') as f:
+                f.write(res_lite)
+            utils.log('cached:', path, '->', fname)
+        except Exception as e:
+            utils.log(e)
+        finally:
+            self.lock.release(fname)
 
     def get(self, path):
         fname = self.get_fname(path)
@@ -185,6 +191,7 @@ class MyCache:
             utils.log(e)
         self.lock.release(fname)
 
+
 class MyFileLock:
     def __init__(self):
         self.locks = set()
@@ -199,21 +206,37 @@ class MyFileLock:
     def release(self, fname):
         self.locks.remove(fname)
 
-def main():
-    port = utils.args.port
-    origin = utils.args.origin
-    MyServer(port, origin).start()
 
+class HealthAgent(threading.Thread):
+    def __init__(self, reporter=None):
+        super().__init__()
+        self.daemon = True
+        self.reporter = reporter
+        self.geo_loc = None
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(('', 0))
+        self.start()
 
-def test():
-    port = 55555
-    origin = 'ec2-54-166-234-74.compute-1.amazonaws.com'
-    MyServer(port, origin).start()
+    def run(self):
+        if self.reporter:
+            self.report()
+        elif self.receiver:
+            self.receive()
+
+    def report(self):
+        TIME_INTERVAL = 5
+        while 1:
+            info = {'status': True}
+            data = json.dumps(info).encode()
+            self.sock.sendto(data, (utils.DNS_HOST, self.reporter.port))
+            sleep(TIME_INTERVAL)
 
 
 if __name__ == '__main__':
     utils.load_args()
+    port = utils.args.port
+    origin = utils.args.origin
     if utils.args.test:
-        test()
-    else:
-        main()
+        port = port or 55555
+        origin = origin or utils.CDN_ORIGIN
+    MyServer(port, origin).start()
