@@ -25,7 +25,7 @@ class MyTest(unittest.TestCase):
         res = call(cmd, output=True)
         x = res.decode().split('\n')
         ip = x[x.index(';; ANSWER SECTION:') + 1].split()[-1]
-        call('time wget -O- http://{}:{}/{}'.format(ip, self.port, path))
+        call('time wget -O- "http://{}:{}/{}"'.format(ip, self.port, path))
 
     def test(self):
         urls = list(parse_urls('popular_raw.html'))

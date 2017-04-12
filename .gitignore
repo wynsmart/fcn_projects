@@ -1,7 +1,9 @@
 *.pyc
+.vscode/
 .remote-sync.json
 tmp/
 cache/
-cache 500/
-.vscode/
+cache 501/
 proj_5/log
+proj_5/err
+proj_5/cache.json

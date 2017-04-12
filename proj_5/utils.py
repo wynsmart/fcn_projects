@@ -1,14 +1,18 @@
 import argparse
 import json
+import re
+import socket
 import subprocess
 import time
 
 args = None
 
+PAGES = 'pages'
 DNS_HOST = 'cs5700cdnproject.ccs.neu.edu'
 # DNS_HOST = 'login.ccs.neu.edu'
 DNS_NAME = 'cs5700cdn.example.com'
-CDN_ORIGIN = 'ec2-54-166-234-74.compute-1.amazonaws.com'
+CDN_ORIGIN_HOST = 'ec2-54-166-234-74.compute-1.amazonaws.com'
+CND_ORIGIN_PORT = 8080
 CDN_HOSTS = [
     'ec2-52-90-80-45.compute-1.amazonaws.com',  # N. Virginia
     'ec2-54-183-23-203.us-west-1.compute.amazonaws.com',  # N. California
@@ -76,3 +80,57 @@ def get_geo(ip):
     res = subprocess.check_output(['curl', '-s', url.format(ip)])
     geo = json.loads(res.decode())
     return tuple(float(l) for l in geo['loc'].split(','))
+
+
+def fetch_origin(raw_request, to_addr):
+    # TODO: retry when failure with timeouted socket
+    sock = socket.socket()
+    sock.connect(to_addr)
+    sock.sendall(raw_request)
+    res = bytes()
+    while not res_complete(res):
+        res += sock.recv(4096)
+    sock.close()
+    return res
+
+
+def res_complete(res):
+    '''Check whether a response is complete
+    If response is chunked encoded, then check the ending bytes;
+    Else if response has Content-Length, then check current body length;
+    '''
+    try:
+        headers, body = res.split(b'\r\n\r\n', maxsplit=1)
+    except:
+        return False
+
+    if b'Transfer-Encoding: chunked' in headers:
+        return body.endswith(b'0\r\n\r\n')
+
+    mclength = re.search(r'Content-Length: (\d+)', headers.decode())
+    if mclength is None:
+        return False
+
+    clength = int(mclength.group(1))
+    return len(body) == clength
+
+
+def extract_paths():
+    with open(PAGES, mode='w') as outf:
+
+        fname = 'popular_raw.html'
+        with open(fname, encoding='utf8') as inf:
+            html = inf.read()
+
+        paths = ['/']
+        paths += re.findall(r'a href="([^"]+)" title', html)
+        outf.writelines([path + '\n' for path in paths])
+
+
+def import_paths():
+    with open(PAGES) as f:
+        return f.read().split()
+
+
+if __name__ == '__main__':
+    extract_paths()

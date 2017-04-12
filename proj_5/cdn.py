@@ -16,6 +16,7 @@ CDN_FILES = [
     'httpserver.py',
     'utils.py',
     'Makefile',
+    utils.PAGES,
 ]
 
 
@@ -26,7 +27,7 @@ class MyCDN:
         self.name = name
         self.username = username
         self.keyfile = keyfile
-        self.root = '~/proj_5'
+        self.ROOT_DIR = '~/proj_5'
         mode_handler = {
             'deploy': self.deploy,
             'run': self.run,
@@ -37,9 +38,9 @@ class MyCDN:
     def deploy(self):
         utils.log('deploying ...')
         self.procs = []
-        self.deploy_dns(utils.DNS_HOST)
+        self._deploy(utils.DNS_HOST, DNS_FILES)
         for host in utils.CDN_HOSTS:
-            self.deploy_cdn(host)
+            self._deploy(host, CDN_FILES)
 
         while len(self.procs):
             self.procs = [p for p in self.procs if p.poll() is None]
@@ -49,21 +50,12 @@ class MyCDN:
         utils.log()
         utils.log('finished.')
 
-    def deploy_dns(self, host):
+    def _deploy(self, host, files):
         utils.log('host:', host)
         try:
-            self.ssh(host, 'mkdir -p {}'.format(self.root))
-            self.ssh(host, 'rm -rf {}/*'.format(self.root))
-            self.scp_async(host, DNS_FILES)
-        except Exception as e:
-            utils.log(e)
-
-    def deploy_cdn(self, host):
-        utils.log('host:', host)
-        try:
-            self.ssh(host, 'mkdir -p {}'.format(self.root))
-            self.ssh(host, 'rm -rf {}/*'.format(self.root))
-            self.scp_async(host, CDN_FILES)
+            self.ssh(host, 'mkdir -p {}'.format(self.ROOT_DIR))
+            self.ssh(host, 'rm -rf {}/*'.format(self.ROOT_DIR))
+            self.scp_async(host, files)
         except Exception as e:
             utils.log(e)
 
@@ -77,36 +69,31 @@ class MyCDN:
     def run_dns(self, host):
         utils.log('host:', host)
         try:
-            self.ssh(host, 'cd {}; make dns'.format(self.root))
+            self.ssh(host, 'cd {}; make dns'.format(self.ROOT_DIR))
             cmd = 'cd {}; ./dnsserver -d -p {} -n {} 2>err'
-            self.ssh_async(host, cmd.format(self.root, self.port, self.name))
+            self.ssh_async(host,
+                           cmd.format(self.ROOT_DIR, self.port, self.name))
         except Exception as e:
             utils.log(e)
 
     def run_cdn(self, host):
         utils.log('host:', host)
         try:
-            self.ssh(host, 'cd {}; make cdn'.format(self.root))
+            self.ssh(host, 'cd {}; make cdn'.format(self.ROOT_DIR))
             cmd = 'cd {}; ./httpserver -d -p {} -o {} 2>err'
-            self.ssh_async(host, cmd.format(self.root, self.port, self.origin))
+            self.ssh_async(host,
+                           cmd.format(self.ROOT_DIR, self.port, self.origin))
         except Exception as e:
             utils.log(e)
 
     def stop(self):
         utils.log('stopping ...')
-        self.stop_dns(utils.DNS_HOST)
+        self._stop(utils.DNS_HOST)
         for host in utils.CDN_HOSTS:
-            self.stop_cdn(host)
+            self._stop(host)
         utils.log('finished')
 
-    def stop_dns(self, host):
-        utils.log('host:', host)
-        try:
-            self.ssh(host, 'pkill python3.4')
-        except Exception as e:
-            utils.log(e)
-
-    def stop_cdn(self, host):
+    def _stop(self, host):
         utils.log('host:', host)
         try:
             self.ssh(host, 'pkill python3.4')
@@ -121,9 +108,9 @@ class MyCDN:
                     f,
                     self.username,
                     host,
-                    '{}/'.format(self.root), ),
+                    '{}/'.format(self.ROOT_DIR), ),
                 shell=True,
-                stdout=subprocess.PIPE)
+                stdout=None)
             self.procs.append(p)
 
     def ssh(self, host, cmd):
@@ -134,7 +121,7 @@ class MyCDN:
                 host,
                 cmd, ),
             shell=True,
-            stdout=subprocess.PIPE)
+            stdout=None)
 
     def ssh_async(self, host, cmd):
         subprocess.check_call(
@@ -144,7 +131,7 @@ class MyCDN:
                 host,
                 cmd, ),
             shell=True,
-            stdout=subprocess.PIPE)
+            stdout=None)
 
 
 if __name__ == "__main__":

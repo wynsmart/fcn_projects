@@ -14,14 +14,13 @@ class MyServer:
     def __init__(self, port, origin):
         self.ip = ''
         self.port = port
-        self.originHost = origin
-        self.originPort = 8080
-        self.lock = MyFileLock()
-        self.cache = MyCache(self.lock)
+        self.origin_host = origin
+        self.origin_port = utils.CND_ORIGIN_PORT
         utils.log('port   ->', self.port)
-        utils.log('origin ->', self.originHost)
+        utils.log('origin ->', self.origin_host)
         self.health = True
         self.h_agent = HealthAgent(reporter=self)
+        self.cache = MyCache(self)
 
     def start(self):
         sock = socket.socket()
@@ -36,7 +35,6 @@ class MyServer:
             conn, _ = sock.accept()
             try:
                 MyReqHandler(self, conn)
-                self.health = True
             except Exception as e:
                 self.health = False
                 utils.log('[BAD HEALTH]', e)
@@ -77,6 +75,7 @@ class MyReqHandler(threading.Thread):
         utils.log(self.client, 'done')
 
     def prep_response(self):
+        # check cache
         cached_res = self.server.cache.get(self.req.path)
         if cached_res is not None:
             utils.log(self.client, 'respond with cache')
@@ -84,42 +83,15 @@ class MyReqHandler(threading.Thread):
         # fetch origin
         utils.log(self.client, 'fetch origin', self.req.path)
         res = self.fetch_origin()
-        self.server.cache.set(self.req.path, res)
+        self.server.cache.add_hotmem(self.req.path, res)
         return res
 
     def fetch_origin(self):
-        # TODO: retry when failure with timeouted socket
-        host = self.server.originHost
-        port = self.server.originPort
+        host = self.server.origin_host
+        port = self.server.origin_port
         raw_request = self.req.forward_raw(host, port)
-        sock = socket.socket()
-        sock.connect((host, port))
-        sock.sendall(raw_request)
-        res = bytes()
-        while not self.res_complete(res):
-            res += sock.recv(4096)
-        sock.close()
+        res = utils.fetch_origin(raw_request, (host, port))
         return res
-
-    def res_complete(self, res):
-        '''Check whether a response is complete
-        If response is chunked encoded, then check the ending bytes;
-        Else if response has Content-Length, then check current body length;
-        '''
-        try:
-            headers, body = res.split(b'\r\n\r\n', maxsplit=1)
-        except:
-            return False
-
-        if b'Transfer-Encoding: chunked' in headers:
-            return body.endswith(b'0\r\n\r\n')
-
-        mclength = re.search(r'Content-Length: (\d+)', headers.decode())
-        if mclength is None:
-            return False
-
-        clength = int(mclength.group(1))
-        return len(body) == clength
 
 
 class MyRequest:
@@ -142,70 +114,153 @@ class MyRequest:
 
 
 class MyCache:
-    # TODO: Implement in memory cache as well
-
-    def __init__(self, lock):
+    def __init__(self, server):
         # TODO: don't cache dynamic pages such as Special:Random
-        self.lock = lock
+        self.server = server
         self.dir = './cache'
         if not os.path.isdir(self.dir):
             os.makedirs(self.dir)
+        self.std_mem = {}
+        self.hot_mem = []
+        self.MAX_DISK = 501
+        self.MAX_SMEM = 300
+        self.MAX_HMEM = 100
+        PreCacheAgent(self)
 
     def get_fname(self, path):
+        '''returns hashed path as file name
+        '''
         hashed_url = hashlib.md5(path.encode()).hexdigest()
         return '{}/{}'.format(self.dir, hashed_url)
 
-    def set(self, path, res):
-        # TODO: test and handle db concurrent writes
+    def add_hotmem(self, path, res):
+        '''save response in hot memory
+        '''
+        res_lite = zlib.compress(res)
+        while (len(self.hot_mem)) >= self.MAX_HMEM:
+            self.hot_mem.pop(0)
+        self.hot_mem.append((path, res_lite))
+        utils.log('cached in hot_mem:', path,
+                  '[{}bytes]'.format(len(res_lite)))
+
+    def add_stdmem(self, path, res):
+        '''save response in standing memory
+        '''
+        res_lite = zlib.compress(res)
+        if len(self.std_mem) < self.MAX_SMEM:
+            self.std_mem[path] = res_lite
+            utils.log('cached in std_mem:', path,
+                      '[{}bytes]'.format(len(res_lite)))
+
+    def add_disk(self, path, res):
+        '''save response in disk
+        '''
         fname = self.get_fname(path)
         res_lite = zlib.compress(res)
-        self.lock.acquire(fname)
         try:
             with open(fname, mode='wb') as f:
                 f.write(res_lite)
-            utils.log('cached:', path, '->', fname)
+            utils.log('cached in disk:', path, '->', fname,
+                      '[{}bytes]'.format(len(res_lite)))
         except Exception as e:
             utils.log(e)
-        finally:
-            self.lock.release(fname)
 
     def get(self, path):
+        '''get cached response for given path
+        1. check in disk persisting cache
+        2. check in memory standing cache
+        3. check in memory hot cache
+        4. return None if not found
+        '''
+        res = self.get_disk(path)
+        if res is not None:
+            return res
+        res = self.get_stdmem(path)
+        if res is not None:
+            return res
+        res = self.get_hotmem(path)
+        if res is not None:
+            return res
+        return None
+
+    def get_disk(self, path):
         fname = self.get_fname(path)
-        self.lock.acquire(fname)
         try:
             with open(fname, mode='rb') as f:
                 res_lite = f.read()
         except Exception as e:
             utils.log(e)
             return None
-        finally:
-            self.lock.release(fname)
         res = zlib.decompress(res_lite)
         return res
 
-    def drop(self, path):
-        fname = self.get_fname(path)
-        self.lock.acquire(fname)
-        try:
-            os.remove(fname)
-        except Exception as e:
-            utils.log(e)
-        self.lock.release(fname)
+    def get_stdmem(self, path):
+        if path in self.std_mem:
+            res_lite = self.std_mem[path]
+            res = zlib.decompress(res_lite)
+            return res
+        else:
+            return None
+
+    def get_hotmem(self, path):
+        for key_path, res_lite in self.hot_mem:
+            if key_path == path:
+                res = zlib.decompress(res_lite)
+                return res
+        return None
 
 
-class MyFileLock:
-    def __init__(self):
-        self.locks = set()
+class PreCacheAgent(threading.Thread):
+    class Worker(threading.Thread):
+        def __init__(self, caller, path, save_fn):
+            super().__init__()
+            self.caller = caller
+            self.path = path
+            self.save_fn = save_fn
+            self.daemon = True
+            self.caller.threads += 1
+            self.start()
 
-    def acquire(self, fname):
-        while fname in self.locks:
-            utils.log('xxx')
+        def run(self):
+            host = self.caller.cache.server.origin_host
+            port = self.caller.cache.server.origin_port
+            request = 'GET {} HTTP/1.1\r\nHost: {}\r\n\r\n'.format(
+                self.path,
+                '{}:{}'.format(host, port), )
+            res = utils.fetch_origin(request.encode(), (host, port))
+            self.save_fn(self.path, res)
+            self.caller.threads -= 1
+
+    def __init__(self, cache):
+        super().__init__()
+        self.cache = cache
+        self.threads = 0
+        self.max_threads = 10
+        self.daemon = True
+        self.start()
+
+    def run(self):
+        '''pre-cache in disk and in standing memory content
+        '''
+        utils.log('PRE-CACHING [start]')
+        paths = utils.import_paths()
+        for i, path in enumerate(paths):
+            if i >= self.cache.MAX_DISK + self.cache.MAX_SMEM:
+                break
+
+            while self.threads >= self.max_threads:
+                pass
+
+            if i < self.cache.MAX_DISK:
+                if self.cache.get_disk(path) is None:
+                    PreCacheAgent.Worker(self, path, self.cache.add_disk)
+            else:
+                if self.cache.get_stdmem(path) is None:
+                    PreCacheAgent.Worker(self, path, self.cache.add_stdmem)
+
+        while self.threads:
             pass
-        self.locks.add(fname)
-        assert fname in self.locks
-
-    def release(self, fname):
-        self.locks.remove(fname)
+        utils.log('PRE-CACHING [finished]')
 
 
 class HealthAgent(threading.Thread):
@@ -219,12 +274,13 @@ class HealthAgent(threading.Thread):
         self.start()
 
     def run(self):
-        TIME_INTERVAL = 5
+        time_interval = 5 if self.reporter.health else 20
         while 1:
             info = {'status': self.reporter.health}
             data = json.dumps(info).encode()
             self.sock.sendto(data, (utils.DNS_HOST, self.reporter.port))
-            sleep(TIME_INTERVAL)
+            sleep(time_interval)
+            self.reporter.health = True
 
 
 if __name__ == '__main__':
@@ -233,5 +289,5 @@ if __name__ == '__main__':
     origin = utils.args.origin
     if utils.args.test:
         port = port or 55555
-        origin = origin or utils.CDN_ORIGIN
+        origin = origin or utils.CDN_ORIGIN_HOST
     MyServer(port, origin).start()
