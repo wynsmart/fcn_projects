@@ -218,10 +218,10 @@ class PreCacheAgent(threading.Thread):
             self.path = path
             self.save_fn = save_fn
             self.daemon = True
-            self.caller.threads += 1
             self.start()
 
         def run(self):
+            self.caller.threads += 1
             host = self.caller.cache.server.origin_host
             port = self.caller.cache.server.origin_port
             request = 'GET {} HTTP/1.1\r\nHost: {}\r\n\r\n'.format(
@@ -235,7 +235,7 @@ class PreCacheAgent(threading.Thread):
         super().__init__()
         self.cache = cache
         self.threads = 0
-        self.max_threads = 10
+        self.MAX_THREADS = 10
         self.daemon = True
         self.start()
 
@@ -248,9 +248,7 @@ class PreCacheAgent(threading.Thread):
             if i >= self.cache.MAX_DISK + self.cache.MAX_SMEM:
                 break
 
-            while self.threads >= self.max_threads:
-                pass
-
+            self.wait_slot()
             if i < self.cache.MAX_DISK:
                 if self.cache.get_disk(path) is None:
                     PreCacheAgent.Worker(self, path, self.cache.add_disk)
@@ -258,9 +256,16 @@ class PreCacheAgent(threading.Thread):
                 if self.cache.get_stdmem(path) is None:
                     PreCacheAgent.Worker(self, path, self.cache.add_stdmem)
 
+        self.wait_sync()
+        utils.log('PRE-CACHING [finished]')
+
+    def wait_slot(self):
+        while self.threads >= self.MAX_THREADS:
+            pass
+
+    def wait_sync(self):
         while self.threads:
             pass
-        utils.log('PRE-CACHING [finished]')
 
 
 class HealthAgent(threading.Thread):

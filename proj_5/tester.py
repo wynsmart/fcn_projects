@@ -3,7 +3,6 @@ import subprocess
 import unittest
 
 import utils
-from pre_cache import parse_urls
 
 
 def call(cmd, output=False):
@@ -22,13 +21,17 @@ class MyTest(unittest.TestCase):
             utils.DNS_HOST,
             self.port,
             utils.DNS_NAME, )
+        print(cmd)
         res = call(cmd, output=True)
+        print(res)
         x = res.decode().split('\n')
         ip = x[x.index(';; ANSWER SECTION:') + 1].split()[-1]
-        call('time wget -O- "http://{}:{}/{}"'.format(ip, self.port, path))
+        cmd = 'time wget -O- "http://{}:{}/{}"'.format(ip, self.port, path)
+        print(cmd)
+        call(cmd)
 
     def test(self):
-        urls = list(parse_urls('popular_raw.html'))
+        urls = utils.import_paths()
         for i in range(100):
             url = random.choice(urls)
             self.get(url)

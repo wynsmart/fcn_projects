@@ -54,7 +54,7 @@ class MyCache(threading.Thread):
         while 1:
             self.save()
             utils.log('====== cache saved ======')
-            utils.log('CDNs:', self.online_cdns)
+            utils.log('CDNs:', len(self.server.online_cdns))
             time.sleep(self.TIME_INTERVAL)
 
     def load(self):
@@ -174,8 +174,12 @@ class DNSLookupHandler(threading.Thread):
             cdn: self.calc_dist(loc1, loc2)
             for cdn, loc2 in self.server.online_cdns.items()
         }
-        assert len(dist), 'all servers are OFFLINE'
-        return sorted(dist.keys(), key=dist.get)[0]
+        try:
+            best_replica_ip = sorted(dist.keys(), key=dist.get)[0]
+            return best_replica_ip
+        except:
+            utils.log('all servers are OFFLINE')
+            exit()
 
     def calc_dist(self, loc1, loc2):
         lat1, lng1 = loc1

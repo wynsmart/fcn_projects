@@ -1,6 +1,6 @@
 import random
 import subprocess
-from time import sleep
+import threading
 
 import utils
 
@@ -28,6 +28,9 @@ class MyCDN:
         self.username = username
         self.keyfile = keyfile
         self.ROOT_DIR = '~/proj_5'
+        self.threads = 0
+        self.dns_fname = 'deploy-dns.tar.gz'
+        self.cdn_fname = 'deploy-cdn.tar.gz'
         mode_handler = {
             'deploy': self.deploy,
             'run': self.run,
@@ -35,103 +38,134 @@ class MyCDN:
         }
         mode_handler[mode]()
 
+    def wait_sync(self):
+        while self.threads:
+            pass
+
     def deploy(self):
-        utils.log('deploying ...')
-        self.procs = []
-        self._deploy(utils.DNS_HOST, DNS_FILES)
+        utils.log('packing files ...')
+        self.deploy_pack(DNS_FILES, self.dns_fname)
+        self.deploy_pack(CDN_FILES, self.cdn_fname)
+
+        utils.log('copying files ...')
+        self.deploy_copy(utils.DNS_HOST, self.dns_fname)
         for host in utils.CDN_HOSTS:
-            self._deploy(host, CDN_FILES)
+            self.deploy_copy(host, self.cdn_fname)
+        self.wait_sync()
+        self.deploy_cleanup()
 
-        while len(self.procs):
-            self.procs = [p for p in self.procs if p.poll() is None]
-            utils.log('remain jobs: {:3}'.format(len(self.procs)),
-                      override=True)
-            sleep(2)
-        utils.log()
-        utils.log('finished.')
+        utils.log('extracting files ...')
+        self.deploy_extract(utils.DNS_HOST, self.dns_fname)
+        for host in utils.CDN_HOSTS:
+            self.deploy_extract(host, self.cdn_fname)
+        self.wait_sync()
 
-    def _deploy(self, host, files):
-        utils.log('host:', host)
-        try:
-            self.ssh(host, 'mkdir -p {}'.format(self.ROOT_DIR))
-            self.ssh(host, 'rm -rf {}/*'.format(self.ROOT_DIR))
-            self.scp_async(host, files)
-        except Exception as e:
-            utils.log(e)
+        utils.log('deploy finished')
+
+    def deploy_pack(self, files, fname):
+        '''pack and compress files
+        '''
+        cmd = 'tar -czf {} {}'.format(fname, ' '.join(files))
+        subprocess.check_call(cmd, shell=True)
+
+    def deploy_copy(self, host, fname):
+        RemoteWorker(self, self.scp, [host, fname])
+
+    def deploy_cleanup(self):
+        cmd = 'rm {} {}'.format(self.dns_fname, self.cdn_fname)
+        subprocess.check_call(cmd, shell=True)
+
+    def deploy_extract(self, host, fname):
+        cmds = ' && '.join([
+            'mkdir -p {}'.format(self.ROOT_DIR),
+            'rm -rf {}/*'.format(self.ROOT_DIR),
+            'tar -xf {} -C {}'.format(fname, self.ROOT_DIR),
+            'rm ~/{}'.format(fname),
+        ])
+        RemoteWorker(self, self.ssh, [host, cmds], msg=host)
 
     def run(self):
-        utils.log('running ...')
+        utils.log('starting ...')
         for host in utils.CDN_HOSTS:
             self.run_cdn(host)
+        self.wait_sync()
         self.run_dns(utils.DNS_HOST)
-        utils.log('serving port', self.port)
+        self.wait_sync()
+        utils.log('serving on port', self.port)
 
     def run_dns(self, host):
-        utils.log('host:', host)
-        try:
-            self.ssh(host, 'cd {}; make dns'.format(self.ROOT_DIR))
-            cmd = 'cd {}; ./dnsserver -d -p {} -n {} 2>err'
-            self.ssh_async(host,
-                           cmd.format(self.ROOT_DIR, self.port, self.name))
-        except Exception as e:
-            utils.log(e)
+        cmds = '  && '.join([
+            'cd {}'.format(self.ROOT_DIR),
+            'make -s dns',
+            './dnsserver -d -p {} -n {}'.format(
+                self.port,
+                self.name, ),
+        ])
+        RemoteWorker(self, self.ssh, [host, cmds, True], msg=host)
 
     def run_cdn(self, host):
-        utils.log('host:', host)
-        try:
-            self.ssh(host, 'cd {}; make cdn'.format(self.ROOT_DIR))
-            cmd = 'cd {}; ./httpserver -d -p {} -o {} 2>err'
-            self.ssh_async(host,
-                           cmd.format(self.ROOT_DIR, self.port, self.origin))
-        except Exception as e:
-            utils.log(e)
+        cmds = ' && '.join([
+            'cd {}'.format(self.ROOT_DIR),
+            'make -s cdn',
+            './httpserver -d -p {} -o {}'.format(
+                self.port,
+                self.origin, ),
+        ])
+        RemoteWorker(self, self.ssh, [host, cmds, True], msg=host)
 
     def stop(self):
         utils.log('stopping ...')
         self._stop(utils.DNS_HOST)
+        self.wait_sync()
         for host in utils.CDN_HOSTS:
             self._stop(host)
-        utils.log('finished')
+        self.wait_sync()
+        utils.log('cdn stopped')
 
     def _stop(self, host):
-        utils.log('host:', host)
+        cmd = 'pkill python3.4'
+        RemoteWorker(self, self.ssh, [host, cmd], msg=host)
+
+    def scp(self, host, fname):
+        cmd = 'scp -rp -i {} {} {}@{}:~'.format(
+            self.keyfile,
+            fname,
+            self.username,
+            host, )
         try:
-            self.ssh(host, 'pkill python3.4')
+            subprocess.check_call(cmd, shell=True)
         except Exception as e:
             utils.log(e)
 
-    def scp_async(self, host, files):
-        for f in files:
-            p = subprocess.Popen(
-                'scp -rp -i {} {} {}@{}:{}'.format(
-                    self.keyfile,
-                    f,
-                    self.username,
-                    host,
-                    '{}/'.format(self.ROOT_DIR), ),
-                shell=True,
-                stdout=None)
-            self.procs.append(p)
+    def ssh(self, host, cmd, asynced=False):
+        cmd = 'ssh -{}i {} {}@{} "{}"'.format(
+            'f' if asynced else '',
+            self.keyfile,
+            self.username,
+            host,
+            cmd, )
+        try:
+            subprocess.check_call(cmd, shell=True, timeout=30)
+        except Exception as e:
+            utils.log(e)
 
-    def ssh(self, host, cmd):
-        subprocess.check_call(
-            'ssh -i {} {}@{} "{}"'.format(
-                self.keyfile,
-                self.username,
-                host,
-                cmd, ),
-            shell=True,
-            stdout=None)
 
-    def ssh_async(self, host, cmd):
-        subprocess.check_call(
-            'ssh -f -i {} {}@{} "{}"'.format(
-                self.keyfile,
-                self.username,
-                host,
-                cmd, ),
-            shell=True,
-            stdout=None)
+class RemoteWorker(threading.Thread):
+    def __init__(self, caller, fn, args, msg=None):
+        super().__init__()
+        self.caller = caller
+        self.fn = fn
+        self.args = args
+        self.msg = msg
+        self.daemon = True
+        self.start()
+
+    def run(self):
+        self.caller.threads += 1
+        self.fn(*self.args)
+        if self.msg is not None:
+            utils.log(self.msg)
+        self.caller.threads -= 1
 
 
 if __name__ == "__main__":

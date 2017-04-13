@@ -54,8 +54,6 @@ def log(*arguments, override=False):
     if args.debug:
         end = '\r' if override else '\n'
         print('{}[{}]{}'.format(WARNING, tm, ENDC), *arguments, end=end)
-    with open('log', mode='a') as logf:
-        print('{}[{}]{}'.format(WARNING, tm, ENDC), *arguments, file=logf)
 
 
 def hexrepr(msg):
