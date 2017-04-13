@@ -235,7 +235,7 @@ class PreCacheAgent(threading.Thread):
         super().__init__()
         self.cache = cache
         self.threads = 0
-        self.MAX_THREADS = 10
+        self.MAX_THREADS = 5
         self.daemon = True
         self.start()
 

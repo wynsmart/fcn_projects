@@ -83,14 +83,16 @@ def get_geo(ip):
 def fetch_origin(raw_request, to_addr):
     # TODO: retry when failure with timeouted socket
     # TODO: verify downloaded content, as well as pre-cached files
-    sock = socket.socket()
-    sock.connect(to_addr)
-    sock.sendall(raw_request)
-    res = bytes()
-    while not res_complete(res):
-        res += sock.recv(4096)
-    sock.close()
-    return res
+    while 1:
+        sock = socket.socket()
+        sock.connect(to_addr)
+        sock.sendall(raw_request)
+        res = bytes()
+        while not res_complete(res):
+            res += sock.recv(4096)
+        sock.close()
+        if res[9] in b'234':
+            return res
 
 
 def res_complete(res):
