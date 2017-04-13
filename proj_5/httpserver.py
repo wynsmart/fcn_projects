@@ -4,8 +4,8 @@ import os
 import re
 import socket
 import threading
+import time
 import zlib
-from time import sleep
 
 import utils
 
@@ -48,6 +48,7 @@ class MyReqHandler(threading.Thread):
         self.server = serverInstance
         self.conn = connection
         self.client = self.conn.getpeername()
+        self.st_time = time.time()
         self.start()
         utils.log(self.client, 'connect')
 
@@ -55,8 +56,8 @@ class MyReqHandler(threading.Thread):
         raw_request = self.conn.recv(4096)
         self.req = MyRequest(raw_request)
         if self.req.method != 'GET':
+            utils.log(self.client, 'only GET method is supported')
             self.done()
-            utils.log('only GET method is supported')
             exit()
         utils.log(self.client, self.req.method, self.req.path)
         self.do_GET()
@@ -72,7 +73,8 @@ class MyReqHandler(threading.Thread):
 
     def done(self):
         self.conn.close()
-        utils.log(self.client, 'done')
+        time_d = time.time() - self.st_time
+        utils.log(self.client, 'done [{:g}s]'.format(time_d))
 
     def prep_response(self):
         # check cache
@@ -284,7 +286,7 @@ class HealthAgent(threading.Thread):
             info = {'status': self.reporter.health}
             data = json.dumps(info).encode()
             self.sock.sendto(data, (utils.DNS_HOST, self.reporter.port))
-            sleep(time_interval)
+            time.sleep(time_interval)
             self.reporter.health = True
 
 

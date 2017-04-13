@@ -44,32 +44,42 @@ class MyTest(unittest.TestCase):
         print(cmd)
         time_a = subprocess.getoutput(cmd).split('\n')
         print(time_a[1])
-        cmd = 'time wget {} -O b "http://{}:{}{}"'.format(
-            options,
-            utils.CDN_ORIGIN_HOST,
-            utils.CND_ORIGIN_PORT,
-            path, )
-        print(cmd)
-        time_b = subprocess.getoutput(cmd).split('\n')
-        print(time_b[1])
+        # cmd = 'time wget {} -O b "http://{}:{}{}"'.format(
+        #     options,
+        #     utils.CDN_ORIGIN_HOST,
+        #     utils.CND_ORIGIN_PORT,
+        #     path, )
+        # print(cmd)
+        # time_b = subprocess.getoutput(cmd).split('\n')
+        # print(time_b[1])
         # assert(time_a < time_b)
 
-        pattern = r'(This page has been accessed \d+ times.)|(<!--.+?-->)'
+        pattern = r'(This page has been accessed \S+ times.)|(<!--.+?-->)'
         with open('a', encoding='utf8') as f:
             a = f.read()
             a = re.sub(pattern, "", a, flags=re.S)
-        with open('b', encoding='utf8') as f:
-            b = f.read()
-            b = re.sub(pattern, "", b, flags=re.S)
-        print('<{} {}>'.format(len(a), len(b)))
-        self.assertEqual(a, b)
+        # with open('b', encoding='utf8') as f:
+        #     b = f.read()
+        #     b = re.sub(pattern, "", b, flags=re.S)
+        # print('<{} {}>'.format(len(a), len(b)))
+        # self.assertEqual(a, b)
+
+    def choice(self, N):
+        total_p = sum([1 / i for i in range(1, N)])
+        n = 0
+        seed = random.random() * total_p
+        while seed > 0:
+            n += 1
+            seed -= 1 / n
+        return n
 
     def test(self):
         urls = utils.import_paths()
-        for i in range(20):
-            choice = random.randint(0, 2000)
-            url = urls[choice]
-            print('{:*^80}'.format(choice))
+        N = len(urls)
+        for i in range(10):
+            n = self.choice(N)
+            url = urls[n]
+            print('{:*^80}'.format(n))
             self.get(url)
 
 
