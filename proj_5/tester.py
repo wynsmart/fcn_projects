@@ -13,11 +13,13 @@ def call(cmd, output=False):
 class MyTest(unittest.TestCase):
     def setUp(self):
         self.port = random.randint(40001, 40030)
-        call('./deployCDN -dt -p {}'.format(self.port))
-        call('./runCDN -dt -p {}'.format(self.port))
+        self.port = int(input('port: '))
+        # call('./deployCDN -dt -p {}'.format(self.port))
+        # call('./runCDN -dt -p {}'.format(self.port))
 
     def tearDown(self):
-        call('./stopCDN -dt')
+        # call('./stopCDN -dt')
+        pass
 
     def get(self, path):
         cmd = 'dig @{} -p {} {}'.format(
@@ -25,9 +27,9 @@ class MyTest(unittest.TestCase):
             self.port,
             utils.DNS_NAME, )
         print(cmd)
-        res = call(cmd, output=True)
+        res = call(cmd, output=True).decode()
         print(res)
-        x = res.decode().split('\n')
+        x = res.split('\n')
         ip = x[x.index(';; ANSWER SECTION:') + 1].split()[-1]
         cmd = 'time wget --max-redirect=0 -O- "http://{}:{}/{}"'.format(
             ip, self.port, path)
