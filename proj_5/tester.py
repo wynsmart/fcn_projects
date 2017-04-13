@@ -1,6 +1,5 @@
 import random
 import subprocess
-import sys
 import unittest
 
 import utils
@@ -13,12 +12,12 @@ def call(cmd, output=False):
 
 class MyTest(unittest.TestCase):
     def setUp(self):
-        self.port = int(sys.argv[1]) or random.randint(40001, 40030)
-        # call('./deployCDN -dt -p {}'.format(self.port))
-        # call('./runCDN -dt -p {}'.format(self.port))
+        self.port = random.randint(40001, 40030)
+        call('./deployCDN -dt -p {}'.format(self.port))
+        call('./runCDN -dt -p {}'.format(self.port))
 
-    # def tearDown(self):
-    #     call('./stopCDN -dt')
+    def tearDown(self):
+        call('./stopCDN -dt')
 
     def get(self, path):
         cmd = 'dig @{} -p {} {}'.format(
