@@ -4,4 +4,4 @@ src=$(pwd)
 export PYTHONPATH=$src
 
 # run main program
-python3.4 -uO "$src/httpserver.py" "$@"  >log 2>&1
+python3.4 -uO "$src/httpserver.py" "$@"

@@ -50,9 +50,9 @@ class MyReqHandler(threading.Thread):
         self.client = self.conn.getpeername()
         self.st_time = time.time()
         self.start()
-        utils.log(self.client, 'connect')
 
     def run(self):
+        utils.log(self.client, 'connect')
         raw_request = self.conn.recv(4096)
         self.req = MyRequest(raw_request)
         if self.req.method != 'GET':

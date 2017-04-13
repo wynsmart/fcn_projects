@@ -97,21 +97,21 @@ class MyCDN:
         cmds = '  && '.join([
             'cd {}'.format(self.ROOT_DIR),
             'make -s dns',
-            './dnsserver -d -p {} -n {}'.format(
+            '(./dnsserver -d -p {} -n {} >log 2>&1 &)'.format(
                 self.port,
                 self.name, ),
         ])
-        RemoteWorker(self, self.ssh, [host, cmds, True], msg=host)
+        RemoteWorker(self, self.ssh, [host, cmds], msg=host)
 
     def run_cdn(self, host):
         cmds = ' && '.join([
             'cd {}'.format(self.ROOT_DIR),
             'make -s cdn',
-            './httpserver -d -p {} -o {}'.format(
+            '(./httpserver -d -p {} -o {} >log 2>&1 &)'.format(
                 self.port,
                 self.origin, ),
         ])
-        RemoteWorker(self, self.ssh, [host, cmds, True], msg=host)
+        RemoteWorker(self, self.ssh, [host, cmds], msg=host)
 
     def stop(self):
         utils.log('stopping ...')
@@ -137,13 +137,12 @@ class MyCDN:
         except Exception as e:
             utils.log(e)
 
-    def ssh(self, host, cmd, asynced=False):
-        cmd = 'ssh -{}i {} {}@{} "{}"'.format(
-            'f' if asynced else '',
+    def ssh(self, host, cmd):
+        cmd = 'ssh -i {} {}@{} "{}"'.format(
             self.keyfile,
             self.username,
             host,
-            cmd, )
+            cmd,)
         try:
             subprocess.check_call(cmd, shell=True, timeout=30)
         except Exception as e:
