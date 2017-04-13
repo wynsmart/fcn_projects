@@ -82,6 +82,7 @@ def get_geo(ip):
 
 def fetch_origin(raw_request, to_addr):
     # TODO: retry when failure with timeouted socket
+    # TODO: verify downloaded content, as well as pre-cached files
     sock = socket.socket()
     sock.connect(to_addr)
     sock.sendall(raw_request)

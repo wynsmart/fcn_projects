@@ -1,5 +1,6 @@
 import random
 import subprocess
+import sys
 import unittest
 
 import utils
@@ -12,9 +13,12 @@ def call(cmd, output=False):
 
 class MyTest(unittest.TestCase):
     def setUp(self):
-        self.port = random.randint(40001, 40030)
-        call('./deployCDN -dt -p {}'.format(self.port))
-        call('./runCDN -dt -p {}'.format(self.port))
+        self.port = int(sys.argv[1]) or random.randint(40001, 40030)
+        # call('./deployCDN -dt -p {}'.format(self.port))
+        # call('./runCDN -dt -p {}'.format(self.port))
+
+    # def tearDown(self):
+    #     call('./stopCDN -dt')
 
     def get(self, path):
         cmd = 'dig @{} -p {} {}'.format(
@@ -26,18 +30,18 @@ class MyTest(unittest.TestCase):
         print(res)
         x = res.decode().split('\n')
         ip = x[x.index(';; ANSWER SECTION:') + 1].split()[-1]
-        cmd = 'time wget -O- "http://{}:{}/{}"'.format(ip, self.port, path)
+        cmd = 'time wget --max-redirect=0 -O- "http://{}:{}/{}"'.format(
+            ip, self.port, path)
         print(cmd)
         call(cmd)
 
     def test(self):
         urls = utils.import_paths()
         for i in range(100):
-            url = random.choice(urls)
+            choice = random.randint(0, 500)
+            url = urls[choice]
+            print(choice, url)
             self.get(url)
-
-    def tearDown(self):
-        call('./stopCDN -dt')
 
 
 if __name__ == '__main__':
