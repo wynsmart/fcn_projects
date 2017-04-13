@@ -9,8 +9,8 @@ args = None
 
 PAGES = 'pages'
 DNS_HOST = 'cs5700cdnproject.ccs.neu.edu'
-# DNS_HOST = 'login.ccs.neu.edu'
 DNS_NAME = 'cs5700cdn.example.com'
+DNS_LOCATION = '42.3424,-71.0878'
 CDN_ORIGIN_HOST = 'ec2-54-166-234-74.compute-1.amazonaws.com'
 CND_ORIGIN_PORT = 8080
 CDN_HOSTS = [
@@ -72,12 +72,11 @@ def hexprint(msg):
 
 
 def get_geo(ip):
-    if ip == '127.0.0.1':
-        return 0, 0
     url = 'http://ipinfo.io/{}/geo'
     res = subprocess.check_output(['curl', '-s', url.format(ip)])
     geo = json.loads(res.decode())
-    return tuple(float(l) for l in geo['loc'].split(','))
+    loc = DNS_LOCATION if geo.get('bogon') else geo['loc']
+    return tuple(float(l) for l in loc.split(','))
 
 
 def fetch_origin(raw_request, to_addr):

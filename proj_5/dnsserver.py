@@ -204,15 +204,14 @@ class Queryparser:
         req_flags = struct.unpack('!H', query[2:4])[0]
         self.opcode = (req_flags >> 11) & 7
         domains = []
-        host_raw = query[12:]
-        i = 0
-        while host_raw[i] != 0:
-            l = host_raw[i]
+        i = 12
+        while query[i] != 0:
+            l = query[i]
             i += 1
-            domains.append(host_raw[i:i + l].decode())
+            domains.append(query[i:i + l].decode())
             i += l
         self.host = '.'.join(domains)
-        self.query = query[12:]
+        self.query = query[12:i + 5]
 
 
 if __name__ == '__main__':
