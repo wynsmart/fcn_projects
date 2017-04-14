@@ -43,6 +43,13 @@ def load_args():
     args = parser.parse_args()
 
 
+def err(*arguments):
+    DANGER = '\033[91m'
+    ENDC = '\033[0m'
+    tm = '{0.tm_hour:02}:{0.tm_min:02}:{0.tm_sec:02}'.format(time.localtime())
+    print('{}[{}]{}'.format(DANGER, tm, ENDC), *arguments)
+
+
 def log(*arguments, override=False):
     '''Logger in debugging mode
     if option '-d' or '--debug' is given
@@ -50,10 +57,17 @@ def log(*arguments, override=False):
     '''
     WARNING = '\033[93m'
     ENDC = '\033[0m'
+    ERASE_LINE = '\x1b[2K'
     tm = '{0.tm_hour:02}:{0.tm_min:02}:{0.tm_sec:02}'.format(time.localtime())
     if args.debug:
         end = '\r' if override else '\n'
-        print('{}[{}]{}'.format(WARNING, tm, ENDC), *arguments, end=end)
+        if override:
+            print(
+                '{}{}[{}]{}'.format(ERASE_LINE, WARNING, tm, ENDC),
+                *arguments,
+                end=end)
+        else:
+            print('{}[{}]{}'.format(WARNING, tm, ENDC), *arguments)
 
 
 def hexrepr(msg):

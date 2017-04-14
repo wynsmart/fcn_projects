@@ -19,7 +19,7 @@ class MyServer:
         utils.log('port   ->', self.port)
         utils.log('origin ->', self.origin_host)
         self.health = True
-        self.h_agent = HealthAgent(reporter=self)
+        self.h_agent = HealthAgent(self)
         self.cache = MyCache(self)
 
     def start(self):
@@ -30,14 +30,16 @@ class MyServer:
         except Exception as e:
             exit(e)
 
-        utils.log('servering ...')
+        utils.log('serving ...')
+        self.cache.pre_cache()
+        self.h_agent.start()
         while 1:
             conn, _ = sock.accept()
             try:
                 MyReqHandler(self, conn)
             except Exception as e:
                 self.health = False
-                utils.log('[BAD HEALTH]', e)
+                utils.err('[BAD HEALTH]', e)
                 conn.close()
 
 
@@ -127,6 +129,8 @@ class MyCache:
         self.MAX_DISK = 501
         self.MAX_SMEM = 300
         self.MAX_HMEM = 100
+
+    def pre_cache(self):
         PreCacheAgent(self)
 
     def get_fname(self, path):
@@ -165,7 +169,7 @@ class MyCache:
             utils.log('cached in disk:', path, '->', fname,
                       '[{}bytes]'.format(len(res_lite)))
         except Exception as e:
-            utils.log(e)
+            utils.err(e)
 
     def get(self, path):
         '''get cached response for given path
@@ -271,14 +275,13 @@ class PreCacheAgent(threading.Thread):
 
 
 class HealthAgent(threading.Thread):
-    def __init__(self, reporter=None):
+    def __init__(self, reporter):
         super().__init__()
         self.daemon = True
         self.reporter = reporter
         self.geo_loc = None
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(('', 0))
-        self.start()
 
     def run(self):
         time_interval = 5 if self.reporter.health else 20

@@ -11,17 +11,18 @@ DNS_FILES = [
     'Makefile',
 ]
 CDN_FILES = [
-    'cache/',
+    utils.PAGES,
     'httpserver',
     'httpserver.py',
     'utils.py',
     'Makefile',
-    utils.PAGES,
+    'cache',
 ]
 
 
 class MyCDN:
     def __init__(self, mode, port, origin, name, username, keyfile):
+        self.debug = '-d' if utils.args.debug else ''
         self.port = port
         self.origin = origin
         self.name = name
@@ -29,8 +30,7 @@ class MyCDN:
         self.keyfile = keyfile
         self.ROOT_DIR = '~/proj_5'
         self.threads = 0
-        self.dns_fname = 'deploy-dns.tar.gz'
-        self.cdn_fname = 'deploy-cdn.tar.gz'
+        self.errs = []
         mode_handler = {
             'deploy': self.deploy,
             'run': self.run,
@@ -40,78 +40,80 @@ class MyCDN:
 
     def wait_sync(self):
         while self.threads:
-            pass
+            utils.log('waiting {}'.format(self.threads), override=True)
+            if self.errs:
+                exit(self.errs.pop(0))
 
     def deploy(self):
-        utils.log('packing files ...')
-        self.deploy_pack(DNS_FILES, self.dns_fname)
-        self.deploy_pack(CDN_FILES, self.cdn_fname)
+        utils.log('preparing ...')
+        self.deploy_prep(utils.DNS_HOST)
+        for host in utils.CDN_HOSTS:
+            self.deploy_prep(host)
+        self.wait_sync()
 
         utils.log('copying files ...')
-        self.deploy_copy(utils.DNS_HOST, self.dns_fname)
+        self.deploy_copy(utils.DNS_HOST, DNS_FILES)
         for host in utils.CDN_HOSTS:
-            self.deploy_copy(host, self.cdn_fname)
-        self.wait_sync()
-        self.deploy_cleanup()
-
-        utils.log('extracting files ...')
-        self.deploy_extract(utils.DNS_HOST, self.dns_fname)
-        for host in utils.CDN_HOSTS:
-            self.deploy_extract(host, self.cdn_fname)
+            self.deploy_copy(host, CDN_FILES)
         self.wait_sync()
 
         utils.log('deploy finished')
 
-    def deploy_pack(self, files, fname):
-        '''pack and compress files
+    def deploy_prep(self, host):
+        '''prepare directories on remote
         '''
-        cmd = 'tar -czf {} {}'.format(fname, ' '.join(files))
-        subprocess.check_call(cmd, shell=True)
-
-    def deploy_copy(self, host, fname):
-        RemoteWorker(self, self.scp, [host, fname])
-
-    def deploy_cleanup(self):
-        cmd = 'rm {} {}'.format(self.dns_fname, self.cdn_fname)
-        subprocess.check_call(cmd, shell=True)
-
-    def deploy_extract(self, host, fname):
         cmds = ' && '.join([
             'mkdir -p {}'.format(self.ROOT_DIR),
             'rm -rf {}/*'.format(self.ROOT_DIR),
-            'tar -xf {} -C {}'.format(fname, self.ROOT_DIR),
-            'rm ~/{}'.format(fname),
         ])
-        RemoteWorker(self, self.ssh, [host, cmds], msg=host)
+        RemoteWorker(self, self.ssh, [host, cmds])
+
+    def deploy_copy(self, host, flist):
+        fname = ' '.join(flist)
+        RemoteWorker(self, self.scp, [host, fname])
 
     def run(self):
         utils.log('starting ...')
         for host in utils.CDN_HOSTS:
             self.run_cdn(host)
-        self.wait_sync()
         self.run_dns(utils.DNS_HOST)
         self.wait_sync()
+
+        utils.log('validating ...')
+        for host in utils.CDN_HOSTS:
+            self.run_validate(host)
+        self.run_validate(utils.DNS_HOST)
         utils.log('serving on port', self.port)
 
     def run_dns(self, host):
         cmds = '  && '.join([
             'cd {}'.format(self.ROOT_DIR),
             'make -s dns',
-            '(./dnsserver -d -p {} -n {} >log 2>&1 &)'.format(
+            '(./dnsserver {} -p {} -n {} >log 2>&1 &)'.format(
+                self.debug,
                 self.port,
                 self.name, ),
         ])
-        RemoteWorker(self, self.ssh, [host, cmds], msg=host)
+        RemoteWorker(self, self.ssh, [host, cmds])
 
     def run_cdn(self, host):
         cmds = ' && '.join([
             'cd {}'.format(self.ROOT_DIR),
             'make -s cdn',
-            '(./httpserver -d -p {} -o {} >log 2>&1 &)'.format(
+            '(./httpserver {} -p {} -o {} >log 2>&1 &)'.format(
+                self.debug,
                 self.port,
                 self.origin, ),
         ])
-        RemoteWorker(self, self.ssh, [host, cmds], msg=host)
+        RemoteWorker(self, self.ssh, [host, cmds])
+
+    def run_validate(self, host):
+        cmd = 'cat {}/log'.format(self.ROOT_DIR)
+        log = self.ssh(host, cmd, output=True)
+        if 'serving ...' not in log:
+            utils.err('failed to start {}'.format(host))
+            exit(log)
+        utils.log(host)
 
     def stop(self):
         utils.log('stopping ...')
@@ -123,30 +125,25 @@ class MyCDN:
         utils.log('cdn stopped')
 
     def _stop(self, host):
-        cmd = 'pkill python3.4'
+        cmd = 'pkill python3.4 || :'
         RemoteWorker(self, self.ssh, [host, cmd], msg=host)
 
     def scp(self, host, fname):
-        cmd = 'scp -rp -i {} {} {}@{}:~'.format(
-            self.keyfile,
-            fname,
-            self.username,
-            host, )
-        try:
-            subprocess.check_call(cmd, shell=True)
-        except Exception as e:
-            utils.log(e)
+        cmd = 'tar -czf - {} | ssh -C -i {} {}@{} "cd {} && tar -xzf -"'
+        subs = (fname, self.keyfile, self.username, host, self.ROOT_DIR)
+        subprocess.check_call(cmd.format(*subs), shell=True)
 
-    def ssh(self, host, cmd):
+    def ssh(self, host, cmd, output=False):
         cmd = 'ssh -i {} {}@{} "{}"'.format(
             self.keyfile,
             self.username,
             host,
-            cmd,)
-        try:
+            cmd, )
+        if output:
+            result = subprocess.check_output(cmd, shell=True, timeout=30)
+            return result.decode() if result else ''
+        else:
             subprocess.check_call(cmd, shell=True, timeout=30)
-        except Exception as e:
-            utils.log(e)
 
 
 class RemoteWorker(threading.Thread):
@@ -161,7 +158,10 @@ class RemoteWorker(threading.Thread):
 
     def run(self):
         self.caller.threads += 1
-        self.fn(*self.args)
+        try:
+            self.fn(*self.args)
+        except Exception as e:
+            self.caller.errs.append(e)
         if self.msg is not None:
             utils.log(self.msg)
         self.caller.threads -= 1

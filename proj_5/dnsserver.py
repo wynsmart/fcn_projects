@@ -16,20 +16,22 @@ class MyDNS:
         utils.log('name ->', self.name)
         self.ip = ''
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind((self.ip, self.port))
-        self.online_cdns = {}
-        self.client_geos = {}
         self.cache = MyCache(self)
         self.client_geos = self.cache.load()
+        self.online_cdns = {}
 
     def start(self):
+        try:
+            self.sock.bind((self.ip, self.port))
+        except Exception as e:
+            exit(e)
+
         utils.log('serving ...')
+        self.cache.start()
         while 1:
             query, addr = self.sock.recvfrom(4096)
             if b'status' in query:
                 self.cdn_report_handler(query, addr[0])
-                # utils.log('CDNs:', self.online_cdns)
-                # utils.log('Clients', self.client_geos)
             else:
                 DNSLookupHandler(self, query, addr)
 
@@ -37,8 +39,15 @@ class MyDNS:
         cdn_info = json.loads(query.decode())
         if cdn_info['status'] and addr not in self.online_cdns:
             self.online_cdns[addr] = utils.get_geo(addr)
+            utils.log('CDN+ {}@{} ({} online)'.format(
+                addr,
+                self.online_cdns[addr],
+                len(self.online_cdns), ))
         elif not cdn_info['status'] and addr in self.online_cdns:
             del self.online_cdns[addr]
+            utils.log('CDN- {} ({} online)'.format(
+                addr,
+                len(self.online_cdns), ))
 
 
 class MyCache(threading.Thread):
@@ -48,14 +57,11 @@ class MyCache(threading.Thread):
         self.fname = 'cache.json'
         self.TIME_INTERVAL = 60
         self.daemon = True
-        self.start()
 
     def run(self):
         while 1:
-            self.save()
-            utils.log('====== cache saved ======')
-            utils.log('CDNs:', len(self.server.online_cdns))
             time.sleep(self.TIME_INTERVAL)
+            self.save()
 
     def load(self):
         try:
@@ -71,7 +77,10 @@ class MyCache(threading.Thread):
             with open(self.fname, mode='w') as f:
                 f.write(cache)
         except Exception as e:
-            utils.log(e)
+            return utils.err(e)
+        utils.log('{:=^30}'.format(' cache saved '))
+        utils.log('Clients', self.client_geos)
+        utils.log('=' * 30)
 
 
 class DNSLookupHandler(threading.Thread):
