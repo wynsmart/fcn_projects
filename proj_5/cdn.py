@@ -181,8 +181,8 @@ if __name__ == "__main__":
 
     if utils.args.test:
         port = port or random.randint(40001, 40030)
-        origin = origin or 'ec2-54-166-234-74.compute-1.amazonaws.com'
-        name = name or 'cs5700cdn.example.com'
+        origin = origin or utils.CDN_ORIGIN_HOST
+        name = name or utils.DNS_NAME
         username = username or 'wynsmart'
         keyfile = keyfile or '~/.ssh/fcn_ec2_id_rsa'
 
