@@ -16,7 +16,7 @@ class MyServer:
         self.port = port
         self.origin_host = origin
         self.origin_port = utils.CND_ORIGIN_PORT
-        utils.log('port   ->', self.port)
+        utils.log('port ->', self.port)
         utils.log('origin ->', self.origin_host)
         self.health = True
         self.h_agent = HealthAgent(self)
@@ -297,7 +297,12 @@ if __name__ == '__main__':
     utils.load_args()
     port = utils.args.port
     origin = utils.args.origin
+
     if utils.args.test:
         port = port or 55555
         origin = origin or utils.CDN_ORIGIN_HOST
+
+    if None in (port, origin):
+        exit('not enough parameters, check help with `-h`')
+
     MyServer(port, origin).start()

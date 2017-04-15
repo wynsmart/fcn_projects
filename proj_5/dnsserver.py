@@ -16,9 +16,9 @@ class MyDNS:
         utils.log('name ->', self.name)
         self.ip = ''
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.cache = MyCache(self)
-        self.client_geos = self.cache.load()
+        self.client_geos = {}
         self.online_cdns = {}
+        self.cache = MyCache(self)
 
     def start(self):
         try:
@@ -57,6 +57,7 @@ class MyCache(threading.Thread):
         self.fname = 'cache.json'
         self.TIME_INTERVAL = 60
         self.daemon = True
+        self.load()
 
     def run(self):
         while 1:
@@ -66,10 +67,11 @@ class MyCache(threading.Thread):
     def load(self):
         try:
             with open(self.fname) as f:
-                cache = f.read()
-            return json.loads(cache)
+                cache = json.loads(f.read())
         except:
-            return {}
+            cache = {}
+
+        self.server.client_geos = cache
 
     def save(self):
         cache = json.dumps(self.server.client_geos)
@@ -79,7 +81,7 @@ class MyCache(threading.Thread):
         except Exception as e:
             return utils.err(e)
         utils.log('{:=^30}'.format(' cache saved '))
-        utils.log('Clients', self.client_geos)
+        utils.log('Clients', self.server.client_geos)
         utils.log('=' * 30)
 
 
@@ -227,7 +229,12 @@ if __name__ == '__main__':
     utils.load_args()
     port = utils.args.port
     name = utils.args.name
+
     if utils.args.test:
         port = port or 44444
         name = name or utils.DNS_NAME
+
+    if None in (port, name):
+        exit('not enough parameters, check help with `-h`')
+
     MyDNS(port, name).start()

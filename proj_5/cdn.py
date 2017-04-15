@@ -76,6 +76,7 @@ class MyCDN:
         utils.log('starting ...')
         for host in utils.CDN_HOSTS:
             self.run_cdn(host)
+        self.wait_sync()
         self.run_dns(utils.DNS_HOST)
         self.wait_sync()
 
@@ -110,7 +111,9 @@ class MyCDN:
     def run_validate(self, host):
         cmd = 'cat {}/log'.format(self.ROOT_DIR)
         log = self.ssh(host, cmd, output=True)
-        if 'serving ...' not in log:
+        check_port = 'port -> {}'.format(self.port) in log
+        check_serve = 'serving ...' in log
+        if not (check_port and check_serve):
             utils.err('failed to start {}'.format(host))
             exit(log)
         utils.log(host)
@@ -125,16 +128,16 @@ class MyCDN:
         utils.log('cdn stopped')
 
     def _stop(self, host):
-        cmd = 'pkill python3.4 || :'
+        cmd = 'pkill -9 -u $USER python || :'
         RemoteWorker(self, self.ssh, [host, cmd], msg=host)
 
     def scp(self, host, fname):
-        cmd = 'tar -czf - {} | ssh -C -i {} {}@{} "cd {} && tar -xzf -"'
+        cmd = "tar -czf - {} | ssh -C -i {} {}@{} 'cd {} && tar -xzf -'"
         subs = (fname, self.keyfile, self.username, host, self.ROOT_DIR)
         subprocess.check_call(cmd.format(*subs), shell=True)
 
     def ssh(self, host, cmd, output=False):
-        cmd = 'ssh -i {} {}@{} "{}"'.format(
+        cmd = "ssh -i {} {}@{} '{}'".format(
             self.keyfile,
             self.username,
             host,
@@ -175,10 +178,15 @@ if __name__ == "__main__":
     name = utils.args.name
     username = utils.args.username
     keyfile = utils.args.keyfile
+
     if utils.args.test:
         port = port or random.randint(40001, 40030)
         origin = origin or 'ec2-54-166-234-74.compute-1.amazonaws.com'
         name = name or 'cs5700cdn.example.com'
         username = username or 'wynsmart'
         keyfile = keyfile or '~/.ssh/fcn_ec2_id_rsa'
+
+    if None in (port, origin, name, username, keyfile):
+        exit('not enough parameters, check help with `-h`')
+
     MyCDN(mode, port, origin, name, username, keyfile)
