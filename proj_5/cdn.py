@@ -39,51 +39,40 @@ class MyCDN:
         mode_handler[mode]()
 
     def wait_sync(self):
-        while self.threads:
+        # TODO: fix this
+        while not self.errs:
             utils.log('waiting {}'.format(self.threads), override=True)
-            if self.errs:
-                exit(self.errs.pop(0))
+            if not self.threads:
+                return
+        exit(self.errs.pop(0))
 
     def deploy(self):
-        utils.log('preparing ...')
-        self.deploy_prep(utils.DNS_HOST)
-        for host in utils.CDN_HOSTS:
-            self.deploy_prep(host)
-        self.wait_sync()
-
         utils.log('copying files ...')
-        self.deploy_copy(utils.DNS_HOST, DNS_FILES)
+        RemoteWorker(self, self._deploy, [utils.DNS_HOST, DNS_FILES])
         for host in utils.CDN_HOSTS:
-            self.deploy_copy(host, CDN_FILES)
+            RemoteWorker(self, self._deploy, [host, CDN_FILES])
         self.wait_sync()
-
         utils.log('deploy finished')
 
-    def deploy_prep(self, host):
-        '''prepare directories on remote
-        '''
+    def _deploy(self, host, flist):
+        # prepare directories on remote
         cmds = ' && '.join([
             'mkdir -p {}'.format(self.ROOT_DIR),
             'rm -rf {}/*'.format(self.ROOT_DIR),
         ])
-        RemoteWorker(self, self.ssh, [host, cmds])
-
-    def deploy_copy(self, host, flist):
+        self.ssh(host, cmds)
+        # copy files to remote
         fname = ' '.join(flist)
-        RemoteWorker(self, self.scp, [host, fname])
+        self.scp(host, fname)
+        utils.log(host)
 
     def run(self):
         utils.log('starting ...')
         for host in utils.CDN_HOSTS:
-            self.run_cdn(host)
+            RemoteWorker(self, self.run_cdn, [host])
         self.wait_sync()
-        self.run_dns(utils.DNS_HOST)
+        RemoteWorker(self, self.run_dns, [utils.DNS_HOST])
         self.wait_sync()
-
-        utils.log('validating ...')
-        for host in utils.CDN_HOSTS:
-            self.run_validate(host)
-        self.run_validate(utils.DNS_HOST)
         utils.log('serving on port', self.port)
 
     def run_dns(self, host):
@@ -95,7 +84,8 @@ class MyCDN:
                 self.port,
                 self.name, ),
         ])
-        RemoteWorker(self, self.ssh, [host, cmds])
+        self.ssh(host, cmds)
+        self._run_validate(host)
 
     def run_cdn(self, host):
         cmds = ' && '.join([
@@ -106,30 +96,30 @@ class MyCDN:
                 self.port,
                 self.origin, ),
         ])
-        RemoteWorker(self, self.ssh, [host, cmds])
+        self.ssh(host, cmds)
+        self._run_validate(host)
 
-    def run_validate(self, host):
+    def _run_validate(self, host):
         cmd = 'cat {}/log'.format(self.ROOT_DIR)
         log = self.ssh(host, cmd, output=True)
-        check_port = 'port -> {}'.format(self.port) in log
-        check_serve = 'serving ...' in log
-        if not (check_port and check_serve):
+        if 'SERVING {}'.format(self.port) in log:
+            utils.log(host)
+        else:
             utils.err('failed to start {}'.format(host))
-            exit(log)
-        utils.log(host)
 
     def stop(self):
         utils.log('stopping ...')
-        self._stop(utils.DNS_HOST)
+        RemoteWorker(self, self._stop, [utils.DNS_HOST])
         self.wait_sync()
         for host in utils.CDN_HOSTS:
-            self._stop(host)
+            RemoteWorker(self, self._stop, [host])
         self.wait_sync()
         utils.log('cdn stopped')
 
     def _stop(self, host):
         cmd = 'pkill -9 -u $USER python || :'
-        RemoteWorker(self, self.ssh, [host, cmd], msg=host)
+        self.ssh(host, cmd)
+        utils.log(host)
 
     def scp(self, host, fname):
         cmd = "tar -czf - {} | ssh -C -i {} {}@{} 'cd {} && tar -xzf -'"
@@ -150,12 +140,11 @@ class MyCDN:
 
 
 class RemoteWorker(threading.Thread):
-    def __init__(self, caller, fn, args, msg=None):
+    def __init__(self, caller, fn, args):
         super().__init__()
         self.caller = caller
         self.fn = fn
         self.args = args
-        self.msg = msg
         self.daemon = True
         self.start()
 
@@ -165,9 +154,8 @@ class RemoteWorker(threading.Thread):
             self.fn(*self.args)
         except Exception as e:
             self.caller.errs.append(e)
-        if self.msg is not None:
-            utils.log(self.msg)
-        self.caller.threads -= 1
+        finally:
+            self.caller.threads -= 1
 
 
 if __name__ == "__main__":

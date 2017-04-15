@@ -16,8 +16,6 @@ class MyServer:
         self.port = port
         self.origin_host = origin
         self.origin_port = utils.CND_ORIGIN_PORT
-        utils.log('port ->', self.port)
-        utils.log('origin ->', self.origin_host)
         self.health = True
         self.h_agent = HealthAgent(self)
         self.cache = MyCache(self)
@@ -30,7 +28,8 @@ class MyServer:
         except Exception as e:
             exit(e)
 
-        utils.log('serving ...')
+        print('{:=^60}'.format(' SERVING {} '.format(self.port)))
+        print('ORIGIN ->', self.origin_host)
         self.cache.pre_cache()
         self.h_agent.start()
         while 1:

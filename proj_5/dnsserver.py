@@ -12,8 +12,6 @@ class MyDNS:
     def __init__(self, port, name):
         self.port = port
         self.name = name
-        utils.log('port ->', self.port)
-        utils.log('name ->', self.name)
         self.ip = ''
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.client_geos = {}
@@ -26,7 +24,8 @@ class MyDNS:
         except Exception as e:
             exit(e)
 
-        utils.log('serving ...')
+        print('{:=^60}'.format(' SERVING {} '.format(self.port)))
+        print('NAME ->', self.name)
         self.cache.start()
         while 1:
             query, addr = self.sock.recvfrom(4096)
