@@ -30,7 +30,6 @@ class MyCDN:
         self.keyfile = keyfile
         self.ROOT_DIR = '~/proj_5'
         self.threads = 0
-        self.errs = []
         mode_handler = {
             'deploy': self.deploy,
             'run': self.run,
@@ -39,12 +38,8 @@ class MyCDN:
         mode_handler[mode]()
 
     def wait_sync(self):
-        # TODO: fix this
-        while not self.errs:
+        while self.threads:
             utils.log('waiting {}'.format(self.threads), override=True)
-            if not self.threads:
-                return
-        exit(self.errs.pop(0))
 
     def deploy(self):
         utils.log('copying files ...')
@@ -153,7 +148,7 @@ class RemoteWorker(threading.Thread):
         try:
             self.fn(*self.args)
         except Exception as e:
-            self.caller.errs.append(e)
+            utils.err(e)
         finally:
             self.caller.threads -= 1
 
