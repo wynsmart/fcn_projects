@@ -179,17 +179,13 @@ class DNSLookupHandler(threading.Thread):
         '''
         if self.client not in self.server.client_geos:
             self.server.client_geos[self.client] = utils.get_geo(self.client)
-        loc1 = self.server.client_geos[self.client]
-        dist = {
-            cdn: self.calc_dist(loc1, loc2)
-            for cdn, loc2 in self.server.online_cdns.items()
-        }
-        try:
-            best_replica_ip = sorted(dist.keys(), key=dist.get)[0]
-            return best_replica_ip
-        except:
-            utils.log('all servers are OFFLINE')
+        if not self.server.online_cdns:
+            utils.log('No online replica available')
             exit()
+        loc1 = self.server.client_geos[self.client]
+        return sorted(
+            self.server.online_cdns,
+            key=lambda k: self.calc_dist(loc1, self.server.online_cdns[k]))[0]
 
     def calc_dist(self, loc1, loc2):
         lat1, lng1 = loc1
