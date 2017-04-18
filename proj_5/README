@@ -16,8 +16,9 @@ HTTP:
 - This class calls the MyReqHandler to handle the incoming connections and their requests.
 - Handler ensures that only 'GET' requests are accepted
 - Server responds with cache if found, else fetch origin
-- MyCache class provides APIs for cache I/O
-- Cache data is compressed, and stored in Sqlite database
+- MyCache class provides APIs for cache I/O, it consists of HMEM, SMEM and DISK. It initially runs the PreCacheAgento to 
+prefetch the files and store them. That class provides APIs to added and update the SMEM, HMEM and DISK.
+- The HealthAgent is used to poll and determine the availability of CDN servers.
 
 DNS:
 - The dnsserver bash script is called to initiate the dnsserver.py
@@ -26,6 +27,16 @@ DNS:
 - The QueryParser class is used to unpack the DNS Request to get the necessary parameters.
 - Only opcode '0' and given domain name is supported, otherwise ignore the requests
 - Currently responds with origin IP address, will be replaced with smart routing for final version
+- DNSLookupHandler is called only when the status of the query message is as expected. In that case it checks for the opcode 
+and the host name. Only if they are correct, then the server proceeds to resolve the query
+- We use the geo location to determine the closets possible server to a given client
+- MyCache class is used tot prefetch and later store the most relevant and popular copies of the content. 
+The data is stored in json format.
+
+CDN 
+- This file is used to initially list down and deploy specific files at the required locations on server.
+- It provides API for SCP and SSH to connect and transfer files to the server.
+- Multi-threading is used to speed up the transfer.
 
 <CHALLENGES>
 - httpserver: needs to remove 'Transfer-Encoding: chunked' in response header
