@@ -156,11 +156,9 @@ class MyCache:
             os.makedirs(self.dir)
         self.std_mem = {}
         self.hot_mem = []
-        # Top ranked pages are cached in disk
-        self.MAX_DISK = 300
-        # Next top ranked pages are cached in memory
-        self.MAX_SMEM = 200
-        # A queue in memory for last responses
+        # Maximum size of static cache in MegaBytes
+        self.MAX_CACHE = 9.5
+        # Maximum dynamic cache queue size in memory for last responses
         self.MAX_HMEM = 50
 
     def pre_cache(self):
@@ -186,10 +184,9 @@ class MyCache:
         '''save response in standing memory
         '''
         res_lite = zlib.compress(res)
-        if len(self.std_mem) < self.MAX_SMEM:
-            self.std_mem[path] = res_lite
-            utils.log('cached in std_mem:', path,
-                      '[{}bytes]'.format(len(res_lite)))
+        self.std_mem[path] = res_lite
+        utils.log('cached in std_mem:', path,
+                  '[{}bytes]'.format(len(res_lite)))
 
     def add_disk(self, path, res):
         '''save response in disk
@@ -296,15 +293,23 @@ class PreCacheAgent(threading.Thread):
         '''
         utils.log('PRE-CACHING [start]')
         paths = utils.import_paths()
-        total_items = self.cache.MAX_DISK + self.cache.MAX_SMEM
-        for i, path in enumerate(paths[:total_items]):
+
+        # caching in disk
+        i = 0
+        while utils.disk_usage(self.cache.dir) < self.cache.MAX_CACHE:
             self.wait_slot()
-            if i < self.cache.MAX_DISK:
-                if self.cache.get_disk(path) is None:
-                    PreCacheAgent.Worker(self, path, self.cache.add_disk)
-            else:
-                if self.cache.get_stdmem(path) is None:
-                    PreCacheAgent.Worker(self, path, self.cache.add_stdmem)
+            if self.cache.get_disk(paths[i]) is None:
+                PreCacheAgent.Worker(self, paths[i], self.cache.add_disk)
+            i += 1
+
+        # caching in standing memory
+        max_disk = i
+        max_smem = 2 * max_disk - 80
+        while i < max_smem:
+            self.wait_slot()
+            if self.cache.get_stdmem(paths[i]) is None:
+                PreCacheAgent.Worker(self, paths[i], self.cache.add_stdmem)
+            i += 1
 
         self.wait_sync()
         utils.log('PRE-CACHING [finished]')

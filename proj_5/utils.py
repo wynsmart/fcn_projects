@@ -155,5 +155,22 @@ def import_paths():
         return f.read().split()
 
 
+def disk_usage(folder):
+    du = subprocess.check_output('du -h {}'.format(folder), shell=True)
+    duh = du.decode().split()[0]
+    size = float(duh[:-1])
+    unit = duh[-1]
+    unit_map = {
+        'B': 10**-3,
+        'K': 1,
+        'M': 10**3,
+        'G': 10**6,
+        'T': 10**9,
+        'P': 10**12,
+    }
+    size *= unit_map[unit]
+    return size
+
+
 if __name__ == '__main__':
     extract_paths()
