@@ -43,7 +43,7 @@ class MyCDN:
         '''wait for all threads completion
         '''
         while self.threads:
-            utils.log('waiting {:02}'.format(self.threads), override=True)
+            utils.log('waiting {}'.format(self.threads), override=True)
 
     def deploy(self):
         '''deploy by copying files to CDNs and DNS
