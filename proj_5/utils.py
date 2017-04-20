@@ -59,15 +59,10 @@ def log(*arguments, override=False):
     '''
     WARNING = '\033[93m'
     ENDC = '\033[0m'
-    ERASE_LINE = '\x1b[2K'
     tm = '{0.tm_hour:02}:{0.tm_min:02}:{0.tm_sec:02}'.format(time.localtime())
     if args.debug:
-        end = '\r' if override else '\n'
         if override:
-            print(
-                '{}{}[{}]{}'.format(ERASE_LINE, WARNING, tm, ENDC),
-                *arguments,
-                end=end)
+            print('{}[{}]{}'.format(WARNING, tm, ENDC), *arguments, end='\r')
         else:
             print('{}[{}]{}'.format(WARNING, tm, ENDC), *arguments)
 
