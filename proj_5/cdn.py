@@ -43,17 +43,19 @@ class MyCDN:
         '''wait for all threads completion
         '''
         while self.threads:
-            utils.log('waiting {}'.format(self.threads), override=True)
+            utils.log('waiting {}'.format(self.threads),
+                      override=True,
+                      force=True)
 
     def deploy(self):
         '''deploy by copying files to CDNs and DNS
         '''
-        utils.log('copying files ...')
+        utils.log('copying files ...', force=True)
         RemoteWorker(self, self._deploy, [utils.DNS_HOST, DNS_FILES])
         for host in utils.CDN_HOSTS:
             RemoteWorker(self, self._deploy, [host, CDN_FILES])
         self.wait_sync()
-        utils.log('deploy finished')
+        utils.log('deploy finished', force=True)
 
     def _deploy(self, host, flist):
         '''actually copy essential files to given host
@@ -67,18 +69,18 @@ class MyCDN:
         # copy files to remote
         fname = ' '.join(flist)
         self.scp(host, fname)
-        utils.log(host)
+        utils.log(host, force=True)
 
     def run(self):
         '''start CDNs firstly then DNS
         '''
-        utils.log('starting ...')
+        utils.log('starting ...', force=True)
         for host in utils.CDN_HOSTS:
             RemoteWorker(self, self.run_cdn, [host])
         self.wait_sync()
         RemoteWorker(self, self.run_dns, [utils.DNS_HOST])
         self.wait_sync()
-        utils.log('serving on port', self.port)
+        utils.log('serving on port', self.port, force=True)
 
     def run_dns(self, host):
         '''actually start given DNS host, with validation
@@ -114,27 +116,27 @@ class MyCDN:
         cmd = 'cat {}/log'.format(self.ROOT_DIR)
         log = self.ssh(host, cmd, output=True)
         if 'SERVING {}'.format(self.port) in log:
-            utils.log(host)
+            utils.log(host, force=True)
         else:
             utils.err('failed to start {}'.format(host))
 
     def stop(self):
         '''stop DNS firstly then CDNs
         '''
-        utils.log('stopping ...')
+        utils.log('stopping ...', force=True)
         RemoteWorker(self, self._stop, [utils.DNS_HOST])
         self.wait_sync()
         for host in utils.CDN_HOSTS:
             RemoteWorker(self, self._stop, [host])
         self.wait_sync()
-        utils.log('cdn stopped')
+        utils.log('cdn stopped', force=True)
 
     def _stop(self, host):
         '''actually stop the given host by killing processes
         '''
         cmd = 'pkill -9 -u $USER python || :'
         self.ssh(host, cmd)
-        utils.log(host)
+        utils.log(host, force=True)
 
     def scp(self, host, fname):
         '''transfer given files to remote server

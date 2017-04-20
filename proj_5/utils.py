@@ -52,7 +52,7 @@ def err(*arguments):
     print('{}[{}]{}'.format(DANGER, tm, ENDC), *arguments)
 
 
-def log(*arguments, override=False):
+def log(*arguments, override=False, force=False):
     '''Logger in debugging mode
     if option '-d' or '--debug' is given
     import debugging outputs will be printed
@@ -61,7 +61,7 @@ def log(*arguments, override=False):
     ENDC = '\033[0m'
     ERASE_LINE = '\x1b[2K'
     tm = '{0.tm_hour:02}:{0.tm_min:02}:{0.tm_sec:02}'.format(time.localtime())
-    if args.debug:
+    if args.debug or force:
         end = '\r' if override else '\n'
         if override:
             print(
