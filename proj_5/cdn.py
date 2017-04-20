@@ -16,7 +16,6 @@ CDN_FILES = [
     'httpserver.py',
     'utils.py',
     'Makefile',
-    'cache',
 ]
 
 
