@@ -11,6 +11,9 @@ import utils
 
 
 class MyServer:
+    '''HTTP server for CDN replica
+    '''
+
     def __init__(self, port, origin):
         self.ip = ''
         self.port = port
@@ -21,6 +24,8 @@ class MyServer:
         self.cache = MyCache(self)
 
     def start(self):
+        '''starts the server, accepts connection and handles requests
+        '''
         sock = socket.socket()
         try:
             sock.bind((self.ip, self.port))
@@ -30,7 +35,9 @@ class MyServer:
 
         print('{:=^60}'.format(' SERVING {} '.format(self.port)))
         print('ORIGIN ->', self.origin_host)
+        # start pre-caching web pages
         self.cache.pre_cache()
+        # start health reporting agent
         self.h_agent.start()
         while 1:
             conn, _ = sock.accept()
@@ -43,6 +50,9 @@ class MyServer:
 
 
 class MyReqHandler(threading.Thread):
+    '''Handler for client requests
+    '''
+
     def __init__(self, serverInstance, connection):
         super().__init__()
         self.daemon = True
@@ -54,16 +64,21 @@ class MyReqHandler(threading.Thread):
 
     def run(self):
         utils.log(self.client, 'connect')
+        # read client request
         raw_request = self.conn.recv(4096)
         self.req = MyRequest(raw_request)
+        # ignore when reequest is not GET
         if self.req.method != 'GET':
             utils.log(self.client, 'only GET method is supported')
             self.done()
             exit()
         utils.log(self.client, self.req.method, self.req.path)
+        # handle GET request
         self.do_GET()
 
     def do_GET(self):
+        '''Handler for GET request
+        '''
         res = self.prep_response()
         try:
             self.conn.sendall(res)
@@ -73,11 +88,15 @@ class MyReqHandler(threading.Thread):
             self.done()
 
     def done(self):
+        '''Close client connection on finish
+        '''
         self.conn.close()
         time_d = time.time() - self.st_time
         utils.log(self.client, 'done [{:g}s]'.format(time_d))
 
     def prep_response(self):
+        '''Prepare response for client request
+        '''
         # check cache
         cached_res = self.server.cache.get(self.req.path)
         if cached_res is not None:
@@ -86,10 +105,13 @@ class MyReqHandler(threading.Thread):
         # fetch origin
         utils.log(self.client, 'fetch origin', self.req.path)
         res = self.fetch_origin()
+        # cache up response in hot memcache
         self.server.cache.add_hotmem(self.req.path, res)
         return res
 
     def fetch_origin(self):
+        '''Fetch response to given request from origin server
+        '''
         host = self.server.origin_host
         port = self.server.origin_port
         raw_request = self.req.forward_raw(host, port)
@@ -98,6 +120,9 @@ class MyReqHandler(threading.Thread):
 
 
 class MyRequest:
+    '''HTTP Request parser
+    '''
+
     def __init__(self, raw_request):
         self.request = raw_request.decode()
         request_info = self.request.split('\r\n')[0]
@@ -107,6 +132,9 @@ class MyRequest:
             self.method = None
 
     def forward_raw(self, host, port):
+        '''Foward client request to origin server
+        by modifying HTTP header `Host`
+        '''
         raw_request = re.sub(
             r'^(Host: ).+$',
             r'\1{}:{}'.format(host, port),
@@ -117,6 +145,9 @@ class MyRequest:
 
 
 class MyCache:
+    '''Cache service for HTTP server
+    '''
+
     def __init__(self, server):
         # TODO: don't cache dynamic pages such as Special:Random
         self.server = server
@@ -125,9 +156,12 @@ class MyCache:
             os.makedirs(self.dir)
         self.std_mem = {}
         self.hot_mem = []
-        self.MAX_DISK = 501
-        self.MAX_SMEM = 300
-        self.MAX_HMEM = 100
+        # Top ranked pages are cached in disk
+        self.MAX_DISK = 300
+        # Next top ranked pages are cached in memory
+        self.MAX_SMEM = 200
+        # A queue in memory for last responses
+        self.MAX_HMEM = 50
 
     def pre_cache(self):
         PreCacheAgent(self)
@@ -189,6 +223,8 @@ class MyCache:
         return None
 
     def get_disk(self, path):
+        '''get cached response from disk
+        '''
         fname = self.get_fname(path)
         try:
             with open(fname, mode='rb') as f:
@@ -200,6 +236,8 @@ class MyCache:
         return res
 
     def get_stdmem(self, path):
+        '''get cached response from standing memory
+        '''
         if path in self.std_mem:
             res_lite = self.std_mem[path]
             res = zlib.decompress(res_lite)
@@ -208,6 +246,8 @@ class MyCache:
             return None
 
     def get_hotmem(self, path):
+        '''get cached response from hot memory
+        '''
         for key_path, res_lite in self.hot_mem:
             if key_path == path:
                 res = zlib.decompress(res_lite)
@@ -216,7 +256,14 @@ class MyCache:
 
 
 class PreCacheAgent(threading.Thread):
+    '''Agent for pre-caching work
+    '''
+
     class Worker(threading.Thread):
+        '''Worker to asynchronously fetch data from origin server
+        then save with given callback function
+        '''
+
         def __init__(self, caller, path, save_fn):
             super().__init__()
             self.caller = caller
@@ -249,10 +296,8 @@ class PreCacheAgent(threading.Thread):
         '''
         utils.log('PRE-CACHING [start]')
         paths = utils.import_paths()
-        for i, path in enumerate(paths):
-            if i >= self.cache.MAX_DISK + self.cache.MAX_SMEM:
-                break
-
+        total_items = self.cache.MAX_DISK + self.cache.MAX_SMEM
+        for i, path in enumerate(paths[:total_items]):
             self.wait_slot()
             if i < self.cache.MAX_DISK:
                 if self.cache.get_disk(path) is None:
@@ -265,15 +310,22 @@ class PreCacheAgent(threading.Thread):
         utils.log('PRE-CACHING [finished]')
 
     def wait_slot(self):
+        '''wait for free slot of threads
+        '''
         while self.threads >= self.MAX_THREADS:
             pass
 
     def wait_sync(self):
+        '''wait for all threads to finish
+        '''
         while self.threads:
             pass
 
 
 class HealthAgent(threading.Thread):
+    '''Agent for server health status reporting
+    '''
+
     def __init__(self, reporter):
         super().__init__()
         self.daemon = True
@@ -283,6 +335,8 @@ class HealthAgent(threading.Thread):
         self.sock.bind(('', 0))
 
     def run(self):
+        '''Periodically report self health status to DNS server
+        '''
         time_interval = 5 if self.reporter.health else 20
         while 1:
             info = {'status': self.reporter.health}

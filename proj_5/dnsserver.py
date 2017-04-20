@@ -9,6 +9,9 @@ import utils
 
 
 class MyDNS:
+    '''DNS server for CDN
+    '''
+
     def __init__(self, port, name):
         self.port = port
         self.name = name
@@ -19,6 +22,8 @@ class MyDNS:
         self.cache = MyCache(self)
 
     def start(self):
+        '''Start DNS server, accept query and health reports
+        '''
         try:
             self.sock.bind((self.ip, self.port))
         except Exception as e:
@@ -30,19 +35,25 @@ class MyDNS:
         while 1:
             query, addr = self.sock.recvfrom(4096)
             if b'status' in query:
+                # handle a health report from replica
                 self.cdn_report_handler(query, addr[0])
             else:
+                # handle a DNS request
                 DNSLookupHandler(self, query, addr)
 
     def cdn_report_handler(self, query, addr):
+        '''Handle a replica health report
+        '''
         cdn_info = json.loads(query.decode())
         if cdn_info['status'] and addr not in self.online_cdns:
+            # add replica to online cdn list
             self.online_cdns[addr] = utils.get_geo(addr)
             utils.log('CDN+ {}@{} ({} online)'.format(
                 addr,
                 self.online_cdns[addr],
                 len(self.online_cdns), ))
         elif not cdn_info['status'] and addr in self.online_cdns:
+            # remove replica from online cdn list
             del self.online_cdns[addr]
             utils.log('CDN- {} ({} online)'.format(
                 addr,
@@ -50,6 +61,9 @@ class MyDNS:
 
 
 class MyCache(threading.Thread):
+    '''Cache handler for clients' geo-locations
+    '''
+
     def __init__(self, server):
         super().__init__()
         self.server = server
@@ -59,11 +73,15 @@ class MyCache(threading.Thread):
         self.load()
 
     def run(self):
+        '''Periodically save cache to file
+        '''
         while 1:
             time.sleep(self.TIME_INTERVAL)
             self.save()
 
     def load(self):
+        '''Load cached locations for visited clients
+        '''
         try:
             with open(self.fname) as f:
                 cache = json.loads(f.read())
@@ -73,6 +91,8 @@ class MyCache(threading.Thread):
         self.server.client_geos = cache
 
     def save(self):
+        '''Save locations of visited clients to file
+        '''
         cache = json.dumps(self.server.client_geos)
         try:
             with open(self.fname, mode='w') as f:
@@ -85,6 +105,9 @@ class MyCache(threading.Thread):
 
 
 class DNSLookupHandler(threading.Thread):
+    '''Handle a domain name look up request
+    '''
+
     def __init__(self, server, query, client_addr):
         super().__init__()
         self.server = server
@@ -188,6 +211,8 @@ class DNSLookupHandler(threading.Thread):
             key=lambda k: self.calc_dist(loc1, self.server.online_cdns[k]))[0]
 
     def calc_dist(self, loc1, loc2):
+        '''Calculate sphere distance between two geo-locations
+        '''
         lat1, lng1 = loc1
         radLat1 = lat1 * (math.pi / 180)
         radLng1 = lng1 * (math.pi / 180)
@@ -205,6 +230,9 @@ class DNSLookupHandler(threading.Thread):
 
 
 class Queryparser:
+    '''DNS query parser, to get basic info of the request
+    '''
+
     def __init__(self, query):
         self.transaction_id = struct.unpack('!H', query[:2])[0]
         req_flags = struct.unpack('!H', query[2:4])[0]

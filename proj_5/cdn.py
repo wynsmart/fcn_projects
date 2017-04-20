@@ -21,6 +21,9 @@ CDN_FILES = [
 
 
 class MyCDN:
+    '''implements deploy/run/stop of CDNs and DNS
+    '''
+
     def __init__(self, mode, port, origin, name, username, keyfile):
         self.debug = '-d' if utils.args.debug else ''
         self.port = port
@@ -38,10 +41,14 @@ class MyCDN:
         mode_handler[mode]()
 
     def wait_sync(self):
+        '''wait for all threads completion
+        '''
         while self.threads:
             utils.log('waiting {}'.format(self.threads), override=True)
 
     def deploy(self):
+        '''deploy by copying files to CDNs and DNS
+        '''
         utils.log('copying files ...')
         RemoteWorker(self, self._deploy, [utils.DNS_HOST, DNS_FILES])
         for host in utils.CDN_HOSTS:
@@ -50,6 +57,8 @@ class MyCDN:
         utils.log('deploy finished')
 
     def _deploy(self, host, flist):
+        '''actually copy essential files to given host
+        '''
         # prepare directories on remote
         cmds = ' && '.join([
             'mkdir -p {}'.format(self.ROOT_DIR),
@@ -62,6 +71,8 @@ class MyCDN:
         utils.log(host)
 
     def run(self):
+        '''start CDNs firstly then DNS
+        '''
         utils.log('starting ...')
         for host in utils.CDN_HOSTS:
             RemoteWorker(self, self.run_cdn, [host])
@@ -71,6 +82,8 @@ class MyCDN:
         utils.log('serving on port', self.port)
 
     def run_dns(self, host):
+        '''actually start given DNS host, with validation
+        '''
         cmds = '  && '.join([
             'cd {}'.format(self.ROOT_DIR),
             'make -s dns',
@@ -83,6 +96,8 @@ class MyCDN:
         self._run_validate(host)
 
     def run_cdn(self, host):
+        '''actually start given CDN host, with validation
+        '''
         cmds = ' && '.join([
             'cd {}'.format(self.ROOT_DIR),
             'make -s cdn',
@@ -95,6 +110,8 @@ class MyCDN:
         self._run_validate(host)
 
     def _run_validate(self, host):
+        '''validate the running host state by checking log
+        '''
         cmd = 'cat {}/log'.format(self.ROOT_DIR)
         log = self.ssh(host, cmd, output=True)
         if 'SERVING {}'.format(self.port) in log:
@@ -103,6 +120,8 @@ class MyCDN:
             utils.err('failed to start {}'.format(host))
 
     def stop(self):
+        '''stop DNS firstly then CDNs
+        '''
         utils.log('stopping ...')
         RemoteWorker(self, self._stop, [utils.DNS_HOST])
         self.wait_sync()
@@ -112,16 +131,22 @@ class MyCDN:
         utils.log('cdn stopped')
 
     def _stop(self, host):
+        '''actually stop the given host by killing processes
+        '''
         cmd = 'pkill -9 -u $USER python || :'
         self.ssh(host, cmd)
         utils.log(host)
 
     def scp(self, host, fname):
+        '''transfer given files to remote server
+        '''
         cmd = "tar -czf - {} | ssh -C -i {} {}@{} 'cd {} && tar -xzf -'"
         subs = (fname, self.keyfile, self.username, host, self.ROOT_DIR)
         subprocess.check_call(cmd.format(*subs), shell=True)
 
     def ssh(self, host, cmd, output=False):
+        '''execute a command on remote server
+        '''
         cmd = "ssh -i {} {}@{} '{}'".format(
             self.keyfile,
             self.username,
@@ -135,6 +160,9 @@ class MyCDN:
 
 
 class RemoteWorker(threading.Thread):
+    '''MultiThread worker for a given function job
+    '''
+
     def __init__(self, caller, fn, args):
         super().__init__()
         self.caller = caller

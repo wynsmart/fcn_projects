@@ -44,6 +44,8 @@ def load_args():
 
 
 def err(*arguments):
+    '''log information as errors
+    '''
     DANGER = '\033[91m'
     ENDC = '\033[0m'
     tm = '{0.tm_hour:02}:{0.tm_min:02}:{0.tm_sec:02}'.format(time.localtime())
@@ -86,6 +88,8 @@ def hexprint(msg):
 
 
 def get_geo(ip):
+    '''get the geo-location of the given ip
+    '''
     url = 'http://ipinfo.io/{}/geo'
     res = subprocess.check_output(['curl', '-s', url.format(ip)])
     geo = json.loads(res.decode())
@@ -93,10 +97,13 @@ def get_geo(ip):
     return tuple(float(l) for l in loc.split(','))
 
 
-def fetch_origin(raw_request, to_addr):
+def fetch_origin(raw_request, origin_addr):
+    '''fetch response to given request on origin server
+    keep retrying when status code is not 2xx, 3xx, or 4xx
+    '''
     while 1:
         sock = socket.socket()
-        sock.connect(to_addr)
+        sock.connect(origin_addr)
         sock.sendall(raw_request)
         res = bytes()
         while not res_complete(res):
@@ -128,6 +135,8 @@ def res_complete(res):
 
 
 def extract_paths():
+    '''extract paths from popularity html
+    '''
     with open(PAGES, mode='w') as outf:
 
         fname = 'popular_raw.html'
@@ -140,6 +149,8 @@ def extract_paths():
 
 
 def import_paths():
+    '''read paths from pages file
+    '''
     with open(PAGES) as f:
         return f.read().split()
 
