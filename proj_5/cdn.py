@@ -146,7 +146,7 @@ class MyCDN:
     def ssh(self, host, cmd, output=False):
         '''execute a command on remote server
         '''
-        cmd = "ssh -i {} {}@{} '{}'".format(
+        cmd = "ssh -o StrictHostKeyChecking=no -i {} {}@{} '{}'".format(
             self.keyfile,
             self.username,
             host,
