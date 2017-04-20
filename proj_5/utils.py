@@ -161,12 +161,12 @@ def disk_usage(folder):
     size = float(duh[:-1])
     unit = duh[-1]
     unit_map = {
-        'B': 10**-6,
-        'K': 10**-3,
+        'B': 1e-6,
+        'K': 1e-3,
         'M': 1,
-        'G': 10**3,
-        'T': 10**6,
-        'P': 10**9,
+        'G': 1e3,
+        'T': 1e6,
+        'P': 1e9,
     }
     size *= unit_map[unit]
     return size
