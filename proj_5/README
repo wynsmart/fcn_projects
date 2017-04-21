@@ -7,12 +7,27 @@ name: Samkeet Shah
 nuid: 00-125-8979
 email: shah.sam@husky.neu.edu
 
+<USAGE TIPS>
+- Log files are available at `proj_5/log` on each host
+- For every executable script, option `-d` is available to print out logs in more details
 
 <HIGH-LEVEL APPROACH>
+HTTP Server:
+- Uses socket to receive GET request and send response, each connection handler is run in separate thread
+- Health agent sends server load status to DNS lively. The DNS server knows when a HTTP server goes online, then add it to routing table. When HTTP server fails to handle a request, it sends FALSE status to DNS, then DNS removes this replica from routing table so that no more requests are mapped to this busy server until it goes back after some timeouts.
+- Caching strategy on HTTP server has three types. The first two types are done during pre-caching. When the server gets started, it fetches the top ranked pages from origin in background and caches them up. The first 10MB cache is saved on disk, with hashed path name as file name. Once in disk cache is full, the next pages will be saved in memory, which is called standing memory cache since it's static will never be replaced. The number of pages in standing memory is 80 less than in disk, to enforce the 10MB restriction. The last type is hot memory cache, which is a FIFO queue that dynamically saves the last 50 visisted pages. Only pages that not cached in the first two types will be cached in hot memory.
+- All cached page is saved as compressed binary file.
+
+DNS Server:
+- The DNS server is implemented with UDP socket, and also in multi-threading manner
+- It maintains joins and leaves of replicas by reading their health report status
+- Client to Replica mapping strategy is based on geo-location. We get latitude and longitude of client's IP from `http://ipinfo.io`, then calculate the sphere surface distance between client and each online replicas. Then route client to the nearest replica server.
+- To reduce the number of geo-location lookups, we periodically save visited clients' IP and geo-location in disk.
+- We didn't use RTT measuring methods, because we balanced the possible performance benefits and the coding difficulties. RTT is roughly proportional to geography distance. Also, there's a performance gap before DNS gets RTTs from all replicas. Because geo-location lookup takes constant time and is fast, and HTTP servers lively report their load status to DNS, we are confident to believe that this strategy can reach top performance in general 
+
+<CLASS BASED SPECIFICATION>
 HTTP:
-- The httpserver bash script is called to initiate the httpserver.py
-- the MyServer class is initialized with the origin, port number , max # of connections
-- The socket is initialized and threads are created for new connections
+- the MyServer class is the main thread and it's initialized with the origin, port number , max # of connections
 - This class calls the MyReqHandler to handle the incoming connections and their requests.
 - Handler ensures that only 'GET' requests are accepted
 - Server responds with cache if found, else fetch origin
@@ -21,37 +36,42 @@ prefetch the files and store them. That class provides APIs to added and update 
 - The HealthAgent is used to poll and determine the availability of CDN servers.
 
 DNS:
-- The dnsserver bash script is called to initiate the dnsserver.py
-- The dns server is initialized with the port number and the name of the requested website
+- The DNS server is is the main thread, and it's initialized with the port number and the name of the requested website
 - The server waits for incoming request and constructs packet with a response, which is then send back.
 - The QueryParser class is used to unpack the DNS Request to get the necessary parameters.
 - Only opcode '0' and given domain name is supported, otherwise ignore the requests
-- Currently responds with origin IP address, will be replaced with smart routing for final version
 - DNSLookupHandler is called only when the status of the query message is as expected. In that case it checks for the opcode 
 and the host name. Only if they are correct, then the server proceeds to resolve the query
-- We use the geo location to determine the closets possible server to a given client
-- MyCache class is used tot prefetch and later store the most relevant and popular copies of the content. 
-The data is stored in json format.
+- MyCache class is used to backup clients' IPs and geo-locations. It is stored in json format.
 
-CDN 
+CDN:
 - This file is used to initially list down and deploy specific files at the required locations on server.
 - It provides API for SCP and SSH to connect and transfer files to the server.
-- Multi-threading is used to speed up the transfer.
+- Multi-threading is used to speed up the operations.
 
 <CHALLENGES>
-- httpserver: needs to remove 'Transfer-Encoding: chunked' in response header
-- multi-threads I/O locks based on separate cache file
-- dns: '\xC0\x0C' changes after packing, which is used as a pointer to the website name in the packet. This is because python3 recognize a byte as integer rather than string.
-- dns: which flags to exactly set
-- Wireshark doesn't parse dns packets which is bind on high ports. Manually dumped the packets in binary while debugging
+- Make decision among different mapping strategies of DNS
+- DNS: '\xC0\x0C' changes after packing, which is used as a pointer to the website name in the packet. This is because python3 recognize a byte as integer rather than string.
+- DNS: which flags to exactly set
+- Wireshark doesn't parse DNS packets which is bind on high ports. Manually dumped the packets in binary while debugging
+- HTTP: efficiently deploy on multiple replicas
+
+<FUTURE IMPROVEMENTS>
+If we had more time, we'd optimize DNS routing strategy. We would combine geography mapping with passive RTT measurements.
+If a new client comes, we map it to the nearest replica based on geo-location. At the meanwhile, DNS send a job to replicas to measure their RTT to the client in background. Once every replica replies with it's RTT, the DNS can route the next visit of the client to a replica with shortest RTT.
 
 <TESTING>
+- Deployed on replicas and test with beacons
 - Get root page, firstly responds with origin, then cached for future gets
-- Tested with other domains to get an invalid response.
+- DNS: tested with other domains to get an invalid response
+- HTTP: fetch certain path, compared content with origin
 
 <WORK LOAD>
 Fan Yang:
-- [file] httpserver.py
+- HTTP server
+- Deployment scripts
+- [file] httpserver.py, cdn.py
 
 Samkeet Shah:
+- DNS server
 - [file] dnsserver.py
